@@ -19,6 +19,27 @@ chmod:
 run: build chmod
 	./$(BINARY) -config $(CONFIG_PATH) $(TEST_PATH)
 
+# 4. Сборка плагина
+build-plugin:
+	go build -o loglinter.so -buildmode=plugin $(CMD_PATH)
+
 # Очистка
 clean:
 	rm -rf bin
+	rm loglinter.so
+	go clean -testcache
+
+
+
+
+# Дополнительные цели
+
+# Установка golangci-lint для тестов
+install-golangci:
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+# Тесты
+test:
+	go test -cover ./pkg/...
+
+

@@ -16,13 +16,6 @@ func main() {
 	zapSugar := zapLogger.Sugar()
 	defer zapSugar.Sync()
 
-	// Edge cases (границы правил)
-	slog.Info("hello world")             // ✅ Пробел допустим // TODO проверить
-	slog.Debug("access token refreshed") // ✅  token //TODO проверить
-	slog.Info("api_key: xyz789")         // ❌ api_key //TODO проверить
-	slog.Debug("Token With Capital")     // ❌ token (case insensitive) //TODO проверить
-	slog.Info("api request completed")   // ✅ api без key // TODO проверить
-
 	// ========================================================================
 	// ❌ КОМБИНИРОВАННЫЕ НАРУШЕНИЯ (несколько правил сразу)
 	// ========================================================================

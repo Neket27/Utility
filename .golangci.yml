@@ -1,9 +1,9 @@
-#linters:
-#  enable:
-#    - utility
-#
-#linters-settings:
-#  custom:
-#    loglint-custom:
-#      type: "command"
-#      args: ["${FILE}"]
+linters-settings:
+  custom:
+    loglinter:
+      path: ./loglinter.so
+      description: Линтер для проверки логов
+
+linters:
+  enable:
+    - loglinter

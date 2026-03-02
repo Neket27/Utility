@@ -1,33 +1,40 @@
+Вы можете собрать линтер как исполняемый файл или как плагин для `golangci-lint`.
 
-## 8. Инструкция по сборке и запуску (для сдачи)
-
-1.  **Инициализация:**
+1.  **Клонируйте репозиторий:**
     ```bash
-    mkdir -p cmd/loglinter loglint/pkg/analyzer/testdata/src/a
-    cd loglint
-    go mod init github.com/yourname/loglint
+    git clone https://github.com/Neket27/Utility.git
     ```
-2.  **Копирование кода:** Разместите файлы согласно структуре выше.
-3.  **Тестирование:**
+    
+2. **Скачайте зависимости:**
     ```bash
-    go test ./pkg/analyzer/...
+    go mod download
     ```
-4.  **Сборка:**
+3.  **Соберите исполняемый файл:**
     ```bash
-    go build -o bin/loglint ./cmd/loglinter
+    go build -o loglinter ./cmd/loglinter
     ```
-5.  **Проверка:**
+
+4.  **Соберите плагин для `golangci-lint`:**
     ```bash
-    ./bin/loglinter ./pkg/analyzer/testdata/src/a/...
+    go build -o loglinter.so -buildmode=plugin ./cmd/loglinter
     ```
-6.  **Интеграция:** Установите бинарник в PATH и настройте `.golangci.yml` как показано в Этапе 4.
 
----
 
-### Комментарий к Этапу 4 (Интеграция)
-В задании требовалось создать плагин для `golangci-lint`. Важно понимать, что архитектура `golangci-lint` эволюционировала. Прямая загрузка внешних плагинов (`.so`) была отключена. Поэтому "совместимость с golangci-lint" в современном контексте означает:
-1.  Использование пакета `golang.org/x/tools/go/analysis` (что мы сделали).
-2.  Возможность запуска через секцию `custom` в конфигурации `golangci-lint`.
-3.  Либо внесение кода в основной репозиторий `golangci-lint` (в папку `pkg/golinters`).
+## Использование
 
-Предложенное решение использует механизм `custom`, что является стандартом де-факто для корпоративных внутренних линтеров, которые не планируется мержить в upstream.
+### Как исполняемый файл
+
+Вы можете запустить линтер напрямую для анализа пакета, standalone режим (для CI/CD).
+Запуск линтера на тестовом файле:
+```bash
+./loglinter -config loglinter.yml ./test_app/main.go
+```
+
+
+## Удаление созданных файлов
+clean:
+```bash
+rm loglinter
+rm loglinter.so
+go clean -testcache
+```

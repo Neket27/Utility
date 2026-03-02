@@ -2,8 +2,6 @@ module utility
 
 go 1.24.0
 
-toolchain go1.24.3
-
 require (
 	go.uber.org/zap v1.27.1
 	golang.org/x/tools v0.42.0
