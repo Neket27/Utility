@@ -90,9 +90,15 @@ func (r *SensitiveWordsRule) compileWords(words []string) {
 	r.words = make([]*regexp.Regexp, 0, len(words))
 	for _, word := range words {
 		escaped := regexp.QuoteMeta(word)
-		pattern := `(?i)\b` + escaped + `\b`
-		if re, err := regexp.Compile(pattern); err == nil {
-			r.words = append(r.words, re)
+		patterns := []string{
+			`(?i)\b` + escaped + `\b`,        // точное совпадение
+			`(?i)\b` + escaped + `\d+\b`,     // password123
+			`(?i)\b` + escaped + `_[a-z]+\b`, // password_prod
+		}
+		for _, pattern := range patterns {
+			if re, err := regexp.Compile(pattern); err == nil {
+				r.words = append(r.words, re)
+			}
 		}
 	}
 }

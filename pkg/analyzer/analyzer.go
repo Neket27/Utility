@@ -46,7 +46,10 @@ func loadConfig(path string) (*config.Config, error) {
 }
 
 func loadRules(cfg *config.Config) []rules.Rule {
-	allRules, _ := rules.GetAllRules()
+	allRules, err := rules.RuleSet()
+	if err != nil {
+		return nil
+	}
 	enabledRules := make([]rules.Rule, 0, len(allRules))
 
 	for _, rule := range allRules {

@@ -54,8 +54,15 @@ func DefaultConfig() *Config {
 			Lowercase:      &RuleConfig{Enabled: boolPtr(true)},
 			EnglishOnly:    &RuleConfig{Enabled: boolPtr(true)},
 			NoSpecialChars: &RuleConfig{Enabled: boolPtr(true)},
-			SensitiveWords: &SensitiveWords{Enabled: boolPtr(true)},
-			CustomPatterns: &CustomPatterns{Enabled: boolPtr(true)},
+			SensitiveWords: &SensitiveWords{
+				Enabled:     boolPtr(true),
+				Words:       make([]string, 0),
+				SafePhrases: make([]string, 0),
+			},
+			CustomPatterns: &CustomPatterns{
+				Enabled:  boolPtr(true),
+				Patterns: make([]string, 0),
+			},
 		},
 	}
 }

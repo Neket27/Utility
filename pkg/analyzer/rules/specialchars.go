@@ -29,7 +29,7 @@ func (r *NoSpecialCharsRule) Check(ctx *CheckContext) *RuleResult {
 		return ResultPass()
 	}
 
-	cleanedMsg := cleanSpecialChars(ctx.Msg)
+	cleanedMsg := CleanSpecialChars(ctx.Msg)
 	return ResultFailWithSuggestion(
 		"log message must not contain special characters or emojis",
 		"Remove special characters",
@@ -95,7 +95,7 @@ func isProblematicSpecialChar(ch rune) bool {
 	return slices.Contains([]rune{'!', '?', '@', '#', '$', '%', '^', '&', '*', '|', '`', '~'}, ch)
 }
 
-func cleanSpecialChars(msg string) string {
+func CleanSpecialChars(msg string) string {
 	var result []rune
 	for _, ch := range msg {
 		if unicode.IsLetter(ch) || unicode.IsDigit(ch) || unicode.IsSpace(ch) {

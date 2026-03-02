@@ -9,13 +9,13 @@ const RuleCustomPatternsName = "custom_patterns"
 
 type CustomPatternsRule struct {
 	BaseRule
-	compiledRegex []*regexp.Regexp
+	CompiledRegex []*regexp.Regexp
 }
 
 func NewCustomPatternsRule() Rule {
 	return &CustomPatternsRule{
 		BaseRule:      NewBaseRule(RuleCustomPatternsName, "Checks log messages against custom regex patterns"),
-		compiledRegex: []*regexp.Regexp{},
+		CompiledRegex: []*regexp.Regexp{},
 	}
 }
 
@@ -25,6 +25,7 @@ func (r *CustomPatternsRule) Configure(config map[string]any) error {
 	}
 
 	patternsRaw, ok := config["patterns"]
+
 	if !ok {
 		return nil
 	}
@@ -39,30 +40,33 @@ func (r *CustomPatternsRule) Configure(config map[string]any) error {
 		}
 	case []string:
 		patterns = v
+	default:
+		patterns = []string{}
 	}
 
 	if len(patterns) == 0 {
+		r.CompiledRegex = []*regexp.Regexp{}
 		return nil
 	}
 
-	r.compiledRegex = make([]*regexp.Regexp, 0, len(patterns))
+	r.CompiledRegex = make([]*regexp.Regexp, 0, len(patterns))
 	for _, s := range patterns {
 		re, err := regexp.Compile(s)
 		if err != nil {
 			return fmt.Errorf("compile pattern %q: %w", s, err)
 		}
-		r.compiledRegex = append(r.compiledRegex, re)
+		r.CompiledRegex = append(r.CompiledRegex, re)
 	}
 
 	return nil
 }
 
 func (r *CustomPatternsRule) Check(ctx *CheckContext) *RuleResult {
-	if !r.Enabled() || len(r.compiledRegex) == 0 {
+	if !r.Enabled() || len(r.CompiledRegex) == 0 {
 		return ResultPass()
 	}
 
-	for _, re := range r.compiledRegex {
+	for _, re := range r.CompiledRegex {
 		if match := re.FindString(ctx.Msg); match != "" {
 			return ResultFailWithSuggestion(
 				fmt.Sprintf("log message matches forbidden pattern: %s", re.String()),
