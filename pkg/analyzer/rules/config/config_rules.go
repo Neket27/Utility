@@ -1,70 +1,105 @@
 package config
 
-// Config — корневая структура конфигурации линтера
+import (
+	"gopkg.in/yaml.v3"
+	"os"
+)
+
+// Config - основная структура конфигурации
 type Config struct {
-	Rules RulesConfig `json:"rules" yaml:"rules"`
+	Rules RulesConfig `yaml:"rules"`
 }
 
-// RulesConfig — настройки для каждого правила
+// RulesConfig - конфигурация правил
 type RulesConfig struct {
-	Lowercase      *RuleConfig          `json:"lowercase,omitempty" yaml:"lowercase,omitempty"`
-	EnglishOnly    *RuleConfig          `json:"english_only,omitempty" yaml:"english_only,omitempty"`
-	NoSpecialChars *RuleConfig          `json:"no_special_chars,omitempty" yaml:"no_special_chars,omitempty"`
-	SensitiveWords *SensitiveRuleConfig `json:"sensitive_words,omitempty" yaml:"sensitive_words,omitempty"`
-	CustomPatterns *CustomRuleConfig    `json:"custom_patterns,omitempty" yaml:"custom_patterns,omitempty"`
+	Lowercase      *RuleConfig     `yaml:"lowercase"`
+	EnglishOnly    *RuleConfig     `yaml:"english_only"`
+	NoSpecialChars *RuleConfig     `yaml:"no_special_chars"`
+	SensitiveWords *SensitiveWords `yaml:"sensitive_words"`
+	CustomPatterns *CustomPatterns `yaml:"custom_patterns"`
 }
 
-// RuleConfig — базовая конфигурация правила
+// RuleConfig - базовая конфигурация правила
 type RuleConfig struct {
-	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	Enabled *bool `yaml:"enabled"`
 }
 
-// SensitiveRuleConfig — конфигурация правила чувствительных данных
-type SensitiveRuleConfig struct {
-	RuleConfig
-	Words []string `json:"words,omitempty" yaml:"words,omitempty"`
+// SensitiveWords - конфигурация правила чувствительных слов
+type SensitiveWords struct {
+	Enabled *bool    `yaml:"enabled"`
+	Words   []string `yaml:"words"`
 }
 
-// CustomRuleConfig — конфигурация кастомных паттернов
-type CustomRuleConfig struct {
-	RuleConfig
-	Patterns []string `json:"patterns,omitempty" yaml:"patterns,omitempty"`
+// CustomPatterns - конфигурация кастомных паттернов
+type CustomPatterns struct {
+	Enabled  *bool    `yaml:"enabled"`
+	Patterns []string `yaml:"patterns"`
 }
 
-// DefaultConfig возвращает конфигурацию по умолчанию
+// IsEnabled - проверка включено ли правило
+func (r *RuleConfig) IsEnabled() bool {
+	if r == nil || r.Enabled == nil {
+		return false // ✅ По умолчанию ВЫКЛЮЧЕНО
+	}
+	return *r.Enabled
+}
+
+// IsEnabled для SensitiveWords
+func (s *SensitiveWords) IsEnabled() bool {
+	if s == nil || s.Enabled == nil {
+		return false
+	}
+	return *s.Enabled
+}
+
+// IsEnabled для CustomPatterns
+func (c *CustomPatterns) IsEnabled() bool {
+	if c == nil || c.Enabled == nil {
+		return false
+	}
+	return *c.Enabled
+}
+
+// DefaultConfig - конфигурация по умолчанию
 func DefaultConfig() *Config {
-	enabled := true
 	return &Config{
 		Rules: RulesConfig{
-			Lowercase:      &RuleConfig{Enabled: &enabled},
-			EnglishOnly:    &RuleConfig{Enabled: &enabled},
-			NoSpecialChars: &RuleConfig{Enabled: &enabled},
-			SensitiveWords: &SensitiveRuleConfig{
-				RuleConfig: RuleConfig{Enabled: &enabled},
-				Words:      DefaultSensitiveWords(),
-			},
-			CustomPatterns: &CustomRuleConfig{
-				RuleConfig: RuleConfig{Enabled: &enabled},
-				Patterns:   []string{},
-			},
+			Lowercase:      &RuleConfig{Enabled: boolPtr(true)},
+			EnglishOnly:    &RuleConfig{Enabled: boolPtr(true)},
+			NoSpecialChars: &RuleConfig{Enabled: boolPtr(true)},
+			SensitiveWords: &SensitiveWords{Enabled: boolPtr(true)},
+			CustomPatterns: &CustomPatterns{Enabled: boolPtr(true)},
 		},
 	}
 }
 
-// DefaultSensitiveWords возвращает слова по умолчанию
-func DefaultSensitiveWords() []string {
-	return []string{
-		"password", "passwd", "pwd",
-		"token", "api_key", "apikey",
-		"secret", "credential",
-		"private_key", "access_token",
-	}
+func boolPtr(b bool) *bool {
+	return &b
 }
 
-// IsEnabled проверяет, включено ли правило
-func (r *RuleConfig) IsEnabled() bool {
-	if r == nil || r.Enabled == nil {
-		return true // По умолчанию включено
+// Loader - загрузчик конфигурации
+type Loader struct {
+	path string
+}
+
+func NewLoader(path string) *Loader {
+	return &Loader{path: path}
+}
+
+func (l *Loader) Load() (*Config, error) {
+	if l.path == "" {
+		return DefaultConfig(), nil
 	}
-	return *r.Enabled
+
+	data, err := os.ReadFile(l.path)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := DefaultConfig()
+	if err := yaml.Unmarshal(data, cfg); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }

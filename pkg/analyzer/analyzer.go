@@ -1,8 +1,8 @@
 package analyzer
 
 import (
-	"encoding/json"
-	_ "flag"
+	"fmt"
+	"os"
 	"utility/pkg/analyzer/rules"
 	"utility/pkg/analyzer/rules/config"
 	"utility/pkg/checker"
@@ -15,52 +15,51 @@ const Doc = `loglinter checks log messages for compliance with logging best prac
 
 func NewAnalyzer() *analysis.Analyzer {
 	var configPath string
-	var configData string // Для передачи конфига из golangci-lint
 
 	analyzer := &analysis.Analyzer{
-		Name:     "loglinter",
-		Doc:      Doc,
-		Run:      func(pass *analysis.Pass) (interface{}, error) { return run(pass, configPath, configData) },
+		Name: "loglinter",
+		Doc:  Doc,
+		Run: func(pass *analysis.Pass) (interface{}, error) {
+			return run(pass, configPath)
+		},
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
 	}
 
-	// Флаги для standalone режима
 	analyzer.Flags.StringVar(&configPath, "config", "", "Path to config file")
-	analyzer.Flags.StringVar(&configData, "config-data", "", "Config data from golangci-lint (base64)")
+	analyzer.Flags.StringVar(&configPath, "loglinter.yml", "", "Path to config file")
 
 	return analyzer
 }
 
-func run(pass *analysis.Pass, configPath, configData string) (interface{}, error) {
+func run(pass *analysis.Pass, configPath string) (interface{}, error) {
 	// 1. Загрузка конфигурации
-	cfg, err := loadConfig(configPath, configData)
+	cfg, err := loadConfig(configPath)
 	if err != nil {
-		pass.Reportf(pass.Files[0].Pos(), "loglinter: failed to load config: %v", err)
-		cfg = config.DefaultConfig() // Fallback на дефолт
+		fmt.Fprintf(os.Stderr, "loglinter: warning: failed to load config: %v\n", err)
+		cfg = config.DefaultConfig()
 	}
 
-	// 2. Инициализация правил
+	// 2. Отладочный вывод (удалите после отладки)
+	fmt.Fprintf(os.Stderr, "=== LOGLINTER CONFIG ===\n")
+	fmt.Fprintf(os.Stderr, "Config path: %s\n", configPath)
+	fmt.Fprintf(os.Stderr, "Lowercase enabled: %v\n", cfg.Rules.Lowercase.IsEnabled())
+	fmt.Fprintf(os.Stderr, "EnglishOnly enabled: %v\n", cfg.Rules.EnglishOnly.IsEnabled())
+	fmt.Fprintf(os.Stderr, "NoSpecialChars enabled: %v\n", cfg.Rules.NoSpecialChars.IsEnabled())
+	fmt.Fprintf(os.Stderr, "SensitiveWords enabled: %v\n", cfg.Rules.SensitiveWords.IsEnabled())
+	fmt.Fprintf(os.Stderr, "CustomPatterns enabled: %v\n", cfg.Rules.CustomPatterns.IsEnabled())
+	fmt.Fprintf(os.Stderr, "========================\n")
+
+	// 3. Инициализация правил
 	rulesList := loadRules(cfg)
 
-	// 3. Создание чекера и запуск
+	// 4. Создание чекера и запуск
 	check := checker.New(rulesList)
 	check.Check(pass)
 
 	return nil, nil
 }
 
-func loadConfig(path, data string) (*config.Config, error) {
-	// Если данные пришли от golangci-lint (через linters-settings)
-	if data != "" {
-		// Здесь можно распарсить JSON, переданный из YAML golangci-lint
-		cfg := config.DefaultConfig()
-		if err := json.Unmarshal([]byte(data), cfg); err != nil {
-			return nil, err
-		}
-		return cfg, nil
-	}
-
-	// Иначе загружаем из файла
+func loadConfig(path string) (*config.Config, error) {
 	loader := config.NewLoader(path)
 	return loader.Load()
 }
@@ -73,7 +72,6 @@ func loadRules(cfg *config.Config) []rules.Rule {
 		var isEnabled bool
 		var ruleConfig map[string]any
 
-		// Маппинг конфига на правило
 		switch rule.Name() {
 		case "lowercase":
 			isEnabled = cfg.Rules.Lowercase.IsEnabled()
@@ -88,9 +86,12 @@ func loadRules(cfg *config.Config) []rules.Rule {
 					ruleConfig = map[string]any{"words": sw.Words}
 				}
 			}
+
 		case "custom_patterns":
 			if cp := cfg.Rules.CustomPatterns; cp != nil {
 				isEnabled = cp.IsEnabled()
+				fmt.Fprintf(os.Stderr, "CustomPatterns enabled: %v\n", isEnabled)
+				fmt.Fprintf(os.Stderr, "CustomPatterns patterns: %v\n", cp.Patterns)
 				if len(cp.Patterns) > 0 {
 					ruleConfig = map[string]any{"patterns": cp.Patterns}
 				}
@@ -100,13 +101,18 @@ func loadRules(cfg *config.Config) []rules.Rule {
 		}
 
 		if !isEnabled {
+			fmt.Fprintf(os.Stderr, "Disabled rule: %s\n", rule.Name())
 			continue
 		}
 
 		if ruleConfig != nil {
-			rule.Configure(ruleConfig)
+			fmt.Fprintf(os.Stderr, "Configuring rule: %s = %v\n", rule.Name(), ruleConfig)
+			if err := rule.Configure(ruleConfig); err != nil {
+				fmt.Fprintf(os.Stderr, "loglinter: failed to configure rule %s: %v\n", rule.Name(), err)
+			}
 		}
 
+		fmt.Fprintf(os.Stderr, "Enabled rule: %s\n", rule.Name())
 		enabledRules = append(enabledRules, rule)
 	}
 

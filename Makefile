@@ -1,11 +1,9 @@
-# Имя бинарника
 BINARY=bin/loglinter
 CMD_PATH=./cmd/loglinter
 TEST_PATH=./test_app/...
 
 .PHONY: all build chmod test run clean
 
-# Основная цель
 all: build chmod
 
 # 1. Сборка бинарника линтера
