@@ -24,9 +24,41 @@ var DefaultSensitiveWords = []string{
 	"encryption_key",
 }
 
+var DefaultSafePhrases = []string{
+	"validated",
+	"verified",
+	"expired",
+	"refreshed",
+	"rotated",
+	"changed",
+	"updated",
+	"deleted",
+	"created",
+	"generated",
+	"revoked",
+	"invalid",
+	"missing",
+	"required",
+	"optional",
+	"configured",
+	"initialized",
+	"loaded",
+	"saved",
+	"cleared",
+	"reset",
+}
+
+var dangerousPatterns = []string{
+	`^\s*[:=+]\s*\S+`,
+	`^\s*is\s+\S+`,
+	`^\s*has\s+\S+`,
+	`^\s*value\s*[:=]`,
+}
+
 type SensitiveWordsRule struct {
 	BaseRule
-	words []*regexp.Regexp
+	words       []*regexp.Regexp
+	safePattern *regexp.Regexp
 }
 
 func NewSensitiveWordsRule() Rule {
@@ -34,6 +66,7 @@ func NewSensitiveWordsRule() Rule {
 		BaseRule: NewBaseRule(RuleSensitiveWordsName, "Checks that log messages don't contain sensitive data"),
 	}
 	rule.compileWords(DefaultSensitiveWords)
+	rule.compileSafePhrases(DefaultSafePhrases)
 	return rule
 }
 
@@ -42,14 +75,12 @@ func (r *SensitiveWordsRule) Configure(config map[string]any) error {
 		return err
 	}
 
-	if words, ok := config["words"].([]any); ok && len(words) > 0 {
-		customWords := make([]string, 0, len(words))
-		for _, w := range words {
-			if s, ok := w.(string); ok {
-				customWords = append(customWords, s)
-			}
-		}
-		r.compileWords(customWords)
+	if words, ok := config["words"].([]string); ok && len(words) > 0 {
+		r.compileWords(words)
+	}
+
+	if safePhrases, ok := config["safe_phrases"].([]string); ok && len(safePhrases) > 0 {
+		r.compileSafePhrases(safePhrases)
 	}
 
 	return nil
@@ -58,13 +89,20 @@ func (r *SensitiveWordsRule) Configure(config map[string]any) error {
 func (r *SensitiveWordsRule) compileWords(words []string) {
 	r.words = make([]*regexp.Regexp, 0, len(words))
 	for _, word := range words {
-		// Спецсимволы экранированы и проверяются границы слов
 		escaped := regexp.QuoteMeta(word)
 		pattern := `(?i)\b` + escaped + `\b`
 		if re, err := regexp.Compile(pattern); err == nil {
 			r.words = append(r.words, re)
 		}
 	}
+}
+
+func (r *SensitiveWordsRule) compileSafePhrases(phrases []string) {
+	if len(phrases) == 0 {
+		return
+	}
+	pattern := `(?i)\b(` + strings.Join(phrases, "|") + `)\b`
+	r.safePattern = regexp.MustCompile(pattern)
 }
 
 func (r *SensitiveWordsRule) Check(ctx *CheckContext) *RuleResult {
@@ -80,13 +118,42 @@ func (r *SensitiveWordsRule) Check(ctx *CheckContext) *RuleResult {
 }
 
 func (r *SensitiveWordsRule) findSensitiveWord(msg string) string {
-	msgLower := strings.ToLower(msg)
-
 	for _, re := range r.words {
-		if match := re.FindString(msgLower); match != "" {
-			return match
+		match := re.FindString(msg)
+		if match == "" {
+			continue
 		}
+
+		if r.hasSafePhrase(msg) {
+			continue
+		}
+
+		return match
 	}
 
 	return ""
+}
+
+func (r *SensitiveWordsRule) hasDangerousContext(msg, word string) bool {
+	wordIdx := strings.Index(strings.ToLower(msg), strings.ToLower(word))
+	if wordIdx == -1 {
+		return false
+	}
+
+	afterWord := msg[wordIdx+len(word):]
+
+	for _, pattern := range dangerousPatterns {
+		if matched, _ := regexp.MatchString(pattern, afterWord); matched {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (r *SensitiveWordsRule) hasSafePhrase(msg string) bool {
+	if r.safePattern == nil {
+		return false
+	}
+	return r.safePattern.MatchString(msg)
 }

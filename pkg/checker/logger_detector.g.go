@@ -3,9 +3,8 @@ package checker
 import (
 	"go/ast"
 	"go/types"
-	"slices"
-
 	"golang.org/x/tools/go/analysis"
+	"slices"
 )
 
 const (

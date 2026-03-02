@@ -1,21 +1,54 @@
 rules:
   lowercase:
-    enabled: false
+    enabled: true
 
   english_only:
-    enabled: false
+    enabled: true
 
   no_special_chars:
-    enabled: false
+    enabled: true
 
   sensitive_words:
-    enabled: false
+    enabled: true
     words:
       - password
-      - token
+      - passwd
+      - pwd
       - secret
+      - token
       - api_key
-      - my_custom_secret
+      - apikey
+      - credential
+      - private_key
+      - access_token
+      - refresh_token
+      - secret_key
+      - encryption_key
+      - secret_token
+
+    safe_phrases:
+      - validated
+      - verified
+      - expired
+      - refreshed
+      - rotated
+      - changed
+      - updated
+      - deleted
+      - created
+      - generated
+      - revoked
+      - invalid
+      - missing
+      - required
+      - configured
+      - initialized
+      - loaded
+      - saved
+      - cleared
+      - reset
+      - processed
+      - synchronized
 
   custom_patterns:
     enabled: true

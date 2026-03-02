@@ -138,16 +138,18 @@ func TestSensitiveWordsRule(t *testing.T) {
 		}
 	})
 
-	t.Run("configure with custom words replaces defaults", func(t *testing.T) {
+	t.Run("configure with custom words appends to defaults", func(t *testing.T) {
 		config := map[string]any{
-			"words": []any{"custom_secret", "my_token"},
+			"words": []string{"custom_secret", "my_token"},
 		}
+
 		err := rule.Configure(config)
 		if err != nil {
 			t.Fatalf("Configure() error = %v", err)
 		}
+
 		if len(rule.words) != 2 {
-			t.Errorf("expected 2 custom patterns, got %d", len(rule.words))
+			t.Errorf("expected %d patterns, got %d", 2, len(rule.words))
 		}
 	})
 
