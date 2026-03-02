@@ -1,0 +1,16 @@
+#linters:
+#  enable:
+#    - utility
+#linters-settings:
+#  custom:
+#    loglint-custom:
+#      type: "module"
+#      path: "https://github.com/Neket27/Utility/cmd/loglint"
+#      description: "Custom linter"
+#      original-url: "https://github.com/Neket27/Utility"
+#
+## Игнорируем тестовые данные самого линтера
+#issues:
+#  exclude-use-default: false
+#  exclude-files:
+#    - "pkg/analyzer/testdata/.*"

@@ -1,0 +1,9 @@
+#linters:
+#  enable:
+#    - utility
+#
+#linters-settings:
+#  custom:
+#    loglint-custom:
+#      type: "command"
+#      args: ["${FILE}"]

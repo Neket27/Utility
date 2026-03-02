@@ -9,7 +9,7 @@ import (
 
 func TestAnalyzer(t *testing.T) {
 	testdata := analysistest.TestData()
-	analyzer := analyzer.NewAnalyzer(testdata)
+	analyzer := analyzer.NewAnalyzer()
 
 	analysistest.Run(t, testdata, analyzer, "example/example.go")
 }

@@ -2,12 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [ main, main ]
+    branches: [dev]
   pull_request:
+    branches: [main]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Checkout repository
@@ -46,4 +47,4 @@ jobs:
           path: coverage.out
 
       - name: Build plugin
-        run: go build -buildmode=plugin -o loglint.so ./plugin
+        run: go build -buildmode=plugin -o loglinter.so ./plugin
