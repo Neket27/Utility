@@ -117,10 +117,32 @@ func (r *SensitiveWordsRule) Check(ctx *CheckContext) *RuleResult {
 	}
 
 	if sensitiveWord := r.findSensitiveWord(ctx.Msg); sensitiveWord != "" {
-		return ResultFail(fmt.Sprintf("log message contains sensitive data: %s", sensitiveWord))
+		var fix *SuggestedFix
+
+		if r.AutoFixEnabled() {
+			fixed := r.redactSensitive(ctx.Msg, sensitiveWord)
+			if fixed != ctx.Msg {
+				fix = &SuggestedFix{
+					Message: "Replace sensitive value with <REDACTED>",
+					NewText: fixed,
+				}
+			}
+		}
+
+		return &RuleResult{
+			Passed:       false,
+			Message:      fmt.Sprintf("log message contains sensitive data: %s", sensitiveWord),
+			SuggestedFix: fix,
+		}
 	}
 
 	return ResultPass()
+}
+
+func (r *SensitiveWordsRule) redactSensitive(msg, word string) string {
+	pattern := `(?i)(` + regexp.QuoteMeta(word) + `)\s*[:=+]\s*\S+`
+	re := regexp.MustCompile(pattern)
+	return re.ReplaceAllString(msg, "${1}=[REDACTED]")
 }
 
 func (r *SensitiveWordsRule) findSensitiveWord(msg string) string {

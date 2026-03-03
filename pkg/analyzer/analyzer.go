@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"fmt"
 	"utility/pkg/analyzer/rules"
 	"utility/pkg/analyzer/rules/config"
 	"utility/pkg/checker"
@@ -32,10 +33,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		cfg = config.DefaultConfig()
 	}
 
+	cfg.Print()
+
 	rulesList := loadRules(cfg)
 
-	check := checker.New(rulesList)
-	check.Check(pass)
+	checkerInstance := checker.New(rulesList)
+	checkerInstance.Check(pass)
 
 	return nil, nil
 }
@@ -58,29 +61,65 @@ func loadRules(cfg *config.Config) []rules.Rule {
 
 		switch rule.Name() {
 		case "lowercase":
-			isEnabled = cfg.Rules.Lowercase.IsEnabled()
+			if rc := cfg.Rules.Lowercase; rc != nil {
+				isEnabled = rc.IsEnabled()
+				ruleConfig = map[string]any{
+					"enabled":          rc.IsEnabled(),
+					"auto_fix_enabled": rc.IsAutoFixEnabled(),
+				}
+			} else {
+				isEnabled = true
+			}
+
 		case "english_only":
-			isEnabled = cfg.Rules.EnglishOnly.IsEnabled()
+			if rc := cfg.Rules.EnglishOnly; rc != nil {
+				isEnabled = rc.IsEnabled()
+			} else {
+				isEnabled = true
+			}
+
 		case "no_special_chars":
-			isEnabled = cfg.Rules.NoSpecialChars.IsEnabled()
+			if ns := cfg.Rules.NoSpecialChars; ns != nil {
+				isEnabled = ns.IsEnabled()
+				ruleConfig = map[string]any{
+					"enabled":              ns.IsEnabled(),
+					"auto_fix_enabled":     ns.IsAutoFixEnabled(),
+					"max_consecutive_dots": *ns.MaxConsecutiveDots,
+				}
+			} else {
+				isEnabled = true
+			}
+
 		case "sensitive_words":
 			if sw := cfg.Rules.SensitiveWords; sw != nil {
 				isEnabled = sw.IsEnabled()
-				ruleConfig = make(map[string]any)
+				ruleConfig = map[string]any{
+					"enabled":          sw.IsEnabled(),
+					"auto_fix_enabled": sw.IsAutoFixEnabled(),
+				}
 				if len(sw.Words) > 0 {
 					ruleConfig["words"] = sw.Words
 				}
 				if len(sw.SafePhrases) > 0 {
 					ruleConfig["safe_phrases"] = sw.SafePhrases
 				}
+			} else {
+				isEnabled = true
 			}
+
 		case "custom_patterns":
 			if cp := cfg.Rules.CustomPatterns; cp != nil {
 				isEnabled = cp.IsEnabled()
-				if len(cp.Patterns) > 0 {
-					ruleConfig = map[string]any{"patterns": cp.Patterns}
+				ruleConfig = map[string]any{
+					"enabled": cp.IsEnabled(),
 				}
+				if len(cp.Patterns) > 0 {
+					ruleConfig["patterns"] = cp.Patterns
+				}
+			} else {
+				isEnabled = true
 			}
+
 		default:
 			isEnabled = true
 		}
@@ -88,10 +127,9 @@ func loadRules(cfg *config.Config) []rules.Rule {
 		if !isEnabled {
 			continue
 		}
-
 		if ruleConfig != nil {
 			if err := rule.Configure(ruleConfig); err != nil {
-				return nil
+				fmt.Printf("Warning: Configure error for %s: %v\n", rule.Name(), err)
 			}
 		}
 

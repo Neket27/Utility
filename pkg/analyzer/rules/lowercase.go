@@ -24,15 +24,19 @@ func (r *LowercaseRule) Check(ctx *CheckContext) *RuleResult {
 		return ResultPass()
 	}
 
-	if suggestion != "" {
-		return ResultFailWithSuggestion(
-			"log message must start with a lowercase letter",
-			"Change first letter to lowercase",
-			suggestion,
-		)
+	var fix *SuggestedFix
+	if r.AutoFixEnabled() && suggestion != "" {
+		fix = &SuggestedFix{
+			Message: "Change first letter to lowercase",
+			NewText: suggestion,
+		}
 	}
 
-	return ResultFail("log message must start with a lowercase letter")
+	return &RuleResult{
+		Passed:       false,
+		Message:      "log message must start with a lowercase letter",
+		SuggestedFix: fix,
+	}
 }
 
 func CheckLowercase(msg string) (bool, string) {

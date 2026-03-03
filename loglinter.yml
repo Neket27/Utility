@@ -1,15 +1,19 @@
 rules:
   lowercase:
     enabled: true
+    auto_fix_enabled: true
 
   english_only:
     enabled: true
 
   no_special_chars:
     enabled: true
+    auto_fix_enabled: true
+    max_consecutive_dots: 0
 
   sensitive_words:
     enabled: true
+    auto_fix_enabled: true
     words:
       - password
       - passwd
@@ -50,6 +54,7 @@ rules:
       - processed
       - synchronized
       - exposed
+      - <REDACTED>
 
   custom_patterns:
     enabled: true

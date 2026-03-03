@@ -5,6 +5,8 @@ import (
 	"utility/pkg/analyzer/rules"
 )
 
+// === Тесты для CheckNoSpecialChars (низкоуровневая функция) ===
+
 func TestCheckNoSpecialChars(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -85,57 +87,138 @@ func TestCheckNoSpecialChars(t *testing.T) {
 	}
 }
 
+// === Тесты для NoSpecialCharsRule.Check с конфигурацией через Configure() ===
+
 func TestNoSpecialCharsRule_Check(t *testing.T) {
 	tests := []struct {
 		name           string
+		config         map[string]any
 		msg            string
-		maxDots        int
-		enabled        bool
 		wantPassed     bool
 		wantSuggestion bool
 	}{
 		// ТЗ ✅ примеры
-		{"ТЗ valid: server started", "server started", 0, true, true, false},
+		{
+			name:           "ТЗ valid: server started",
+			config:         map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 0},
+			msg:            "server started",
+			wantPassed:     true,
+			wantSuggestion: false,
+		},
 
 		// ТЗ ❌ примеры
-		{"ТЗ invalid: exclamation + emoji", "server started! 🚀", 1, true, false, true},
-		{"ТЗ invalid: multiple exclamation", "connection failed!!!", 1, true, false, true},
-		{"ТЗ invalid: ellipsis", "something went wrong...", 1, true, false, true},
+		{
+			name:           "ТЗ invalid: exclamation + emoji",
+			config:         map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 1},
+			msg:            "server started! 🚀",
+			wantPassed:     false,
+			wantSuggestion: true,
+		},
+		{
+			name:           "ТЗ invalid: multiple exclamation",
+			config:         map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 1},
+			msg:            "connection failed!!!",
+			wantPassed:     false,
+			wantSuggestion: true,
+		},
+		{
+			name:           "ТЗ invalid: ellipsis with maxDots=0",
+			config:         map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 0},
+			msg:            "something went wrong...",
+			wantPassed:     false,
+			wantSuggestion: true,
+		},
 
-		// Конфигурируемость
-		{"strict mode: dot forbidden", "server started.", 0, true, false, true},
-		{"lenient mode: two dots allowed", "waiting..", 2, true, true, false},
+		// Конфигурируемость max_consecutive_dots
+		{
+			name:           "strict mode: dot forbidden (maxDots=0)",
+			config:         map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 0},
+			msg:            "server started.",
+			wantPassed:     false,
+			wantSuggestion: true,
+		},
+		{
+			name:           "lenient mode: one dot allowed (maxDots=1)",
+			config:         map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 1},
+			msg:            "server started.",
+			wantPassed:     true,
+			wantSuggestion: false,
+		},
+		{
+			name:           "lenient mode: two dots allowed (maxDots=2)",
+			config:         map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 2},
+			msg:            "waiting..",
+			wantPassed:     true,
+			wantSuggestion: false,
+		},
+		{
+			name:           "ellipsis forbidden even with maxDots=2",
+			config:         map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 2},
+			msg:            "waiting...",
+			wantPassed:     false,
+			wantSuggestion: true,
+		},
 
-		// Включение/выключение правила
-		{"disabled rule always passes", "server!", 1, false, true, false},
+		// Автофикс включён/выключен
+		{
+			name:           "autoFix enabled: suggestion provided",
+			config:         map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 0},
+			msg:            "test!@#",
+			wantPassed:     false,
+			wantSuggestion: true,
+		},
+		{
+			name:           "autoFix disabled: no suggestion",
+			config:         map[string]any{"enabled": true, "auto_fix_enabled": false, "max_consecutive_dots": 0},
+			msg:            "test!@#",
+			wantPassed:     false,
+			wantSuggestion: false,
+		},
 
-		// Проверка предложений по исправлению
-		{"emoji removed in suggestion", "ok 😀", 1, true, false, true},
-		{"special chars cleaned", "test!@#", 1, true, false, true},
-		{"allowed punctuation preserved", "path/to/file.txt", 1, true, true, false},
+		// Правило выключено — всегда проходит
+		{
+			name:           "disabled rule always passes",
+			config:         map[string]any{"enabled": false, "auto_fix_enabled": true},
+			msg:            "server! 🚀",
+			wantPassed:     true,
+			wantSuggestion: false,
+		},
+
+		// Разрешённая пунктуация сохраняется в подсказке
+		{
+			name:           "allowed punctuation preserved in suggestion",
+			config:         map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 1},
+			msg:            "path/to/file.txt",
+			wantPassed:     true,
+			wantSuggestion: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rules.MaxConsecutiveDots = tt.maxDots
-
 			rule := rules.NewNoSpecialCharsRule()
-			rule.SetEnabled(tt.enabled)
+
+			if err := rule.Configure(tt.config); err != nil {
+				t.Fatalf("Configure() error = %v", err)
+			}
 
 			ctx := &rules.CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if result.Passed != tt.wantPassed {
-				t.Errorf("Check() passed = %v, want %v", result.Passed, tt.wantPassed)
+				t.Errorf("Check(%q) passed = %v, want %v", tt.msg, result.Passed, tt.wantPassed)
 			}
 
 			hasSuggestion := result.SuggestedFix != nil
 			if hasSuggestion != tt.wantSuggestion {
-				t.Errorf("Check() has SuggestedFix = %v, want %v", hasSuggestion, tt.wantSuggestion)
+				t.Errorf("Check(%q) has SuggestedFix = %v, want %v",
+					tt.msg, hasSuggestion, tt.wantSuggestion)
 			}
 		})
 	}
 }
+
+// === Тесты для CleanSpecialChars ===
 
 func TestCleanSpecialChars(t *testing.T) {
 	tests := []struct {
@@ -152,6 +235,8 @@ func TestCleanSpecialChars(t *testing.T) {
 		{"only special", "!@#", ""},
 		{"preserve unicode", "сервер! ok", "сервер ok"},
 		{"ellipsis kept by cleaner", "waiting...", "waiting..."},
+		{"preserve quotes", `msg "quoted"`, `msg "quoted"`},
+		{"preserve parentheses", "status (ok)", "status (ok)"},
 	}
 
 	for _, tt := range tests {
@@ -159,6 +244,157 @@ func TestCleanSpecialChars(t *testing.T) {
 			got := rules.CleanSpecialChars(tt.input)
 			if got != tt.want {
 				t.Errorf("CleanSpecialChars(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// === Тесты для авто-исправления (AutoFix) ===
+
+func TestNoSpecialCharsRule_AutoFix(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        map[string]any
+		msg           string
+		wantPassed    bool
+		wantSuggested string
+	}{
+		// Автофикс включён — предложения есть
+		{
+			name:          "autoFix=true: remove emoji",
+			config:        map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 0},
+			msg:           "started 😀",
+			wantPassed:    false,
+			wantSuggested: "started ",
+		},
+		{
+			name:          "autoFix=true: remove special chars",
+			config:        map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 0},
+			msg:           "test!@#",
+			wantPassed:    false,
+			wantSuggested: "test",
+		},
+		{
+			name:          "autoFix=true: preserve allowed punct",
+			config:        map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 1},
+			msg:           "path/to/file.txt",
+			wantPassed:    true,
+			wantSuggested: "",
+		},
+
+		// Автофикс выключен — предложений нет
+		{
+			name:          "autoFix=false: no suggestion for emoji",
+			config:        map[string]any{"enabled": true, "auto_fix_enabled": false, "max_consecutive_dots": 0},
+			msg:           "started 😀",
+			wantPassed:    false,
+			wantSuggested: "",
+		},
+		{
+			name:          "autoFix=false: no suggestion for special chars",
+			config:        map[string]any{"enabled": true, "auto_fix_enabled": false, "max_consecutive_dots": 0},
+			msg:           "test!@#",
+			wantPassed:    false,
+			wantSuggested: "",
+		},
+
+		// Правило выключено — не работает вообще
+		{
+			name:          "enabled=false: no check, no suggestion",
+			config:        map[string]any{"enabled": false, "auto_fix_enabled": true},
+			msg:           "test!@# 😀",
+			wantPassed:    true,
+			wantSuggested: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rule := rules.NewNoSpecialCharsRule()
+
+			if err := rule.Configure(tt.config); err != nil {
+				t.Fatalf("Configure() error = %v", err)
+			}
+
+			ctx := &rules.CheckContext{Msg: tt.msg}
+			result := rule.Check(ctx)
+
+			if result.Passed != tt.wantPassed {
+				t.Errorf("Check(%q) passed = %v, want %v", tt.msg, result.Passed, tt.wantPassed)
+			}
+
+			gotSuggestion := extractSuggestedText(result.SuggestedFix)
+			if gotSuggestion != tt.wantSuggested {
+				t.Errorf("SuggestedFix = %q, want %q", gotSuggestion, tt.wantSuggested)
+			}
+		})
+	}
+}
+
+func TestNoSpecialCharsRule_Configure(t *testing.T) {
+	tests := []struct {
+		name           string
+		config         map[string]any
+		msg            string
+		wantPassed     bool
+		wantSuggestion bool
+	}{
+		{
+			name:           "default config (maxDots=0, autoFix=true)",
+			config:         map[string]any{},
+			msg:            "server started.",
+			wantPassed:     false,
+			wantSuggestion: true,
+		},
+		{
+			name:           "configure max_consecutive_dots=1",
+			config:         map[string]any{"max_consecutive_dots": 1},
+			msg:            "server started.",
+			wantPassed:     true,
+			wantSuggestion: false,
+		},
+		{
+			name:           "configure auto_fix_enabled=false",
+			config:         map[string]any{"auto_fix_enabled": false},
+			msg:            "test!",
+			wantPassed:     false,
+			wantSuggestion: false,
+		},
+		{
+			name:           "configure enabled=false",
+			config:         map[string]any{"enabled": false},
+			msg:            "test! 🚀",
+			wantPassed:     true,
+			wantSuggestion: false,
+		},
+		{
+			name:           "full config",
+			config:         map[string]any{"enabled": true, "auto_fix_enabled": true, "max_consecutive_dots": 2},
+			msg:            "waiting..",
+			wantPassed:     true,
+			wantSuggestion: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rule := rules.NewNoSpecialCharsRule()
+
+			if err := rule.Configure(tt.config); err != nil {
+				t.Fatalf("Configure() error = %v", err)
+			}
+
+			ctx := &rules.CheckContext{Msg: tt.msg}
+			result := rule.Check(ctx)
+
+			if result.Passed != tt.wantPassed {
+				t.Errorf("Check(%q) passed = %v, want %v", tt.msg, result.Passed, tt.wantPassed)
+			}
+
+			hasSuggestion := result.SuggestedFix != nil
+			if hasSuggestion != tt.wantSuggestion {
+				t.Errorf("Check(%q) has SuggestedFix = %v, want %v",
+					tt.msg, hasSuggestion, tt.wantSuggestion)
 			}
 		})
 	}

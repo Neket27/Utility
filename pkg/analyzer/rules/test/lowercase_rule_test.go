@@ -166,3 +166,244 @@ func TestLowercaseRule_EdgeCases(t *testing.T) {
 		})
 	}
 }
+
+func TestLowercaseRule_AutoFixEnabled(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        map[string]any
+		msg           string
+		wantPassed    bool
+		wantSuggested string
+	}{
+		// Автофикс включён (по умолчанию) — предложения есть
+		{
+			name:          "autoFix=true: uppercase",
+			config:        map[string]any{"enabled": true, "auto_fix_enabled": true},
+			msg:           "Server started",
+			wantPassed:    false,
+			wantSuggested: "server started",
+		},
+		{
+			name:          "autoFix=true: unicode",
+			config:        map[string]any{"enabled": true, "auto_fix_enabled": true},
+			msg:           "Запуск сервера",
+			wantPassed:    false,
+			wantSuggested: "запуск сервера",
+		},
+		{
+			name:          "autoFix=true: valid msg",
+			config:        map[string]any{"enabled": true, "auto_fix_enabled": true},
+			msg:           "server started",
+			wantPassed:    true,
+			wantSuggested: "",
+		},
+
+		// Автофикс выключен — предложений нет, но ошибка детектится
+		{
+			name:          "autoFix=false: uppercase",
+			config:        map[string]any{"enabled": true, "auto_fix_enabled": false},
+			msg:           "Server started",
+			wantPassed:    false,
+			wantSuggested: "",
+		},
+		{
+			name:          "autoFix=false: unicode",
+			config:        map[string]any{"enabled": true, "auto_fix_enabled": false},
+			msg:           "Запуск",
+			wantPassed:    false,
+			wantSuggested: "",
+		},
+		{
+			name:          "autoFix=false: valid msg",
+			config:        map[string]any{"enabled": true, "auto_fix_enabled": false},
+			msg:           "server started",
+			wantPassed:    true,
+			wantSuggested: "",
+		},
+
+		// Правило выключено — всегда проходит, без фиксов
+		{
+			name:          "enabled=false, autoFix=true",
+			config:        map[string]any{"enabled": false, "auto_fix_enabled": true},
+			msg:           "Server",
+			wantPassed:    true,
+			wantSuggested: "",
+		},
+		{
+			name:          "enabled=false, autoFix=false",
+			config:        map[string]any{"enabled": false, "auto_fix_enabled": false},
+			msg:           "Server",
+			wantPassed:    true,
+			wantSuggested: "",
+		},
+
+		// Конфиг по умолчанию (auto_fix_enabled=true)
+		{
+			name:          "default config",
+			config:        map[string]any{},
+			msg:           "Starting",
+			wantPassed:    false,
+			wantSuggested: "starting",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rule := rules.NewLowercaseRule()
+
+			if err := rule.Configure(tt.config); err != nil {
+				t.Fatalf("Configure() error = %v", err)
+			}
+
+			ctx := &rules.CheckContext{Msg: tt.msg}
+			result := rule.Check(ctx)
+
+			if result.Passed != tt.wantPassed {
+				t.Errorf("Check(%q) passed = %v, want %v", tt.msg, result.Passed, tt.wantPassed)
+			}
+
+			gotSuggestion := extractSuggestedText(result.SuggestedFix)
+			if gotSuggestion != tt.wantSuggested {
+				t.Errorf("SuggestedFix = %q, want %q", gotSuggestion, tt.wantSuggested)
+			}
+		})
+	}
+}
+
+func TestLowercaseRule_Configure_AutoFix(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        map[string]any
+		msg           string
+		wantSuggested string
+	}{
+		{
+			name:          "configure auto_fix_enabled=true",
+			config:        map[string]any{"auto_fix_enabled": true},
+			msg:           "ERROR occurred",
+			wantSuggested: "eRROR occurred",
+		},
+		{
+			name:          "configure auto_fix_enabled=false",
+			config:        map[string]any{"auto_fix_enabled": false},
+			msg:           "ERROR occurred",
+			wantSuggested: "",
+		},
+		{
+			name:          "configure with both flags",
+			config:        map[string]any{"enabled": true, "auto_fix_enabled": false},
+			msg:           "Starting",
+			wantSuggested: "",
+		},
+		{
+			name:          "default config (auto_fix enabled)",
+			config:        map[string]any{},
+			msg:           "Starting",
+			wantSuggested: "starting",
+		},
+		{
+			name:          "enabled=false overrides autoFix",
+			config:        map[string]any{"enabled": false, "auto_fix_enabled": true},
+			msg:           "Starting",
+			wantSuggested: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rule := rules.NewLowercaseRule()
+
+			if err := rule.Configure(tt.config); err != nil {
+				t.Fatalf("Configure() error = %v", err)
+			}
+
+			ctx := &rules.CheckContext{Msg: tt.msg}
+			result := rule.Check(ctx)
+
+			gotSuggestion := extractSuggestedText(result.SuggestedFix)
+			if gotSuggestion != tt.wantSuggested {
+				t.Errorf("SuggestedFix = %q, want %q", gotSuggestion, tt.wantSuggested)
+			}
+		})
+	}
+}
+
+func TestLowercaseRule_AutoFix_Safety(t *testing.T) {
+	tests := []struct {
+		name     string
+		msg      string
+		config   map[string]any
+		expected string
+	}{
+		{
+			name:     "preserve numbers",
+			msg:      "Error404",
+			config:   map[string]any{"auto_fix_enabled": true},
+			expected: "error404",
+		},
+		{
+			name:     "preserve punctuation",
+			msg:      "Error: failed!",
+			config:   map[string]any{"auto_fix_enabled": true},
+			expected: "error: failed!",
+		},
+		{
+			name:     "preserve spaces",
+			msg:      "UPPERCASE  ",
+			config:   map[string]any{"auto_fix_enabled": true},
+			expected: "uPPERCASE  ",
+		},
+		{
+			name:     "preserve unicode rest",
+			msg:      "Привет Мир",
+			config:   map[string]any{"auto_fix_enabled": true},
+			expected: "привет Мир",
+		},
+		{
+			name:     "mixed case",
+			msg:      "HTTPServerError",
+			config:   map[string]any{"auto_fix_enabled": true},
+			expected: "hTTPServerError",
+		},
+		{
+			name:     "autoFix disabled - no suggestion",
+			msg:      "Error404",
+			config:   map[string]any{"auto_fix_enabled": false},
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rule := rules.NewLowercaseRule()
+
+			if err := rule.Configure(tt.config); err != nil {
+				t.Fatalf("Configure() error = %v", err)
+			}
+
+			ctx := &rules.CheckContext{Msg: tt.msg}
+			result := rule.Check(ctx)
+
+			if tt.expected == "" {
+				if result.SuggestedFix != nil {
+					t.Errorf("Expected no suggestion, got %q", extractSuggestedText(result.SuggestedFix))
+				}
+				return
+			}
+
+			if result.Passed {
+				t.Skip("message is valid, no fix needed")
+			}
+
+			got := extractSuggestedText(result.SuggestedFix)
+			if got != tt.expected {
+				t.Errorf("SuggestedFix = %q, want %q", got, tt.expected)
+			}
+
+			if len([]rune(got)) != len([]rune(tt.msg)) {
+				t.Errorf("Suggestion rune length mismatch: input=%d, got=%d",
+					len([]rune(tt.msg)), len([]rune(got)))
+			}
+		})
+	}
+}

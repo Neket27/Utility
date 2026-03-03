@@ -7,40 +7,64 @@ import (
 
 const RuleNoSpecialCharsName = "no_special_chars"
 
-// MaxConsecutiveDots =3 -> For example, allow "waiting..."
-var MaxConsecutiveDots = 0
+// DefaultMaxConsecutiveDots =3 -> For example, allow "waiting..." By TZ=0
+const DefaultMaxConsecutiveDots = 0
 
 var allowedPunctuation = []rune{'.', ',', ':', '-', '_', '/', '(', ')', '[', ']', '{', '}', '=', '+', '"', '\''}
 var problematicSpecialChar = []rune{'!', '?', '@', '#', '$', '%', '^', '&', '*', '|', '`', '~'}
 
 type NoSpecialCharsRule struct {
 	BaseRule
-	maxConsecutiveDots int
+	MaxConsecutiveDots int
 }
 
 func NewNoSpecialCharsRule() Rule {
 	return &NoSpecialCharsRule{
 		BaseRule:           NewBaseRule(RuleNoSpecialCharsName, "Checks that log messages don't contain special characters or emojis"),
-		maxConsecutiveDots: MaxConsecutiveDots,
+		MaxConsecutiveDots: DefaultMaxConsecutiveDots,
 	}
 }
+
+/*func (r *NoSpecialCharsRule) Configure(config map[string]any) error {
+	if err := r.BaseRule.Configure(config); err != nil {
+		return err
+	}
+	if maxDots, ok := config["max_consecutive_dots"].(int); ok {
+		r.MaxConsecutiveDots = maxDots
+	}
+
+	return nil
+}*/
 
 func (r *NoSpecialCharsRule) Check(ctx *CheckContext) *RuleResult {
 	if !r.Enabled() {
 		return ResultPass()
 	}
 
-	valid, _ := CheckNoSpecialChars(ctx.Msg, r.maxConsecutiveDots)
+	valid, _ := CheckNoSpecialChars(ctx.Msg, r.MaxConsecutiveDots)
+
 	if valid {
 		return ResultPass()
 	}
 
-	cleanedMsg := CleanSpecialChars(ctx.Msg)
-	return ResultFailWithSuggestion(
-		"log message must not contain special characters or emojis",
-		"Remove special characters",
-		cleanedMsg,
-	)
+	var fix *SuggestedFix
+	if r.AutoFixEnabled() {
+		cleanedMsg := CleanSpecialChars(ctx.Msg)
+		cleanedMsg = truncateConsecutiveDots(cleanedMsg, r.MaxConsecutiveDots)
+
+		if cleanedMsg != ctx.Msg {
+			fix = &SuggestedFix{
+				Message: "Remove special characters and emojis",
+				NewText: cleanedMsg,
+			}
+		}
+	}
+
+	return &RuleResult{
+		Passed:       false,
+		Message:      "log message must not contain special characters or emojis",
+		SuggestedFix: fix,
+	}
 }
 
 func CheckNoSpecialChars(msg string, maxDots int) (bool, rune) {
@@ -112,5 +136,37 @@ func CleanSpecialChars(msg string) string {
 			result = append(result, ch)
 		}
 	}
+	return string(result)
+}
+
+func truncateConsecutiveDots(msg string, maxDots int) string {
+	if maxDots < 0 {
+		return msg
+	}
+
+	var result []rune
+	dotCount := 0
+	prevWasDot := false
+
+	for _, ch := range msg {
+		if ch == '.' {
+			if prevWasDot {
+				dotCount++
+			} else {
+				dotCount = 1
+			}
+
+			if dotCount <= maxDots {
+				result = append(result, ch)
+			}
+
+			prevWasDot = true
+		} else {
+			result = append(result, ch)
+			prevWasDot = false
+			dotCount = 0
+		}
+	}
+
 	return string(result)
 }

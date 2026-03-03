@@ -39,18 +39,9 @@ func (c *Checker) Check(pass *analysis.Pass) {
 
 func (c *Checker) checkCallExpr(call *ast.CallExpr, pass *analysis.Pass) {
 	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
+	if !ok || !c.detector.IsLogMethod(sel.Sel.Name) || !c.detector.IsLogger(pass, sel.X) {
 		return
 	}
-
-	if !c.detector.IsLogMethod(sel.Sel.Name) {
-		return
-	}
-
-	if !c.detector.IsLogger(pass, sel.X) {
-		return
-	}
-
 	c.executeRules(call, pass)
 }
 
