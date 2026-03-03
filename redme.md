@@ -13,6 +13,10 @@
     ```bash
     go build -o loglinter ./cmd/loglinter
     ```
+4. **Сделать файл исполняемым (Linux/Mac)** 
+    ```bash
+   chmod +x ./loglinter
+    ```
 
 4.  **Соберите плагин для `golangci-lint`:**
     ```bash
@@ -30,9 +34,67 @@
 ./loglinter -config loglinter.yml ./test_app/main.go
 ```
 
+## Пример работы 
+### Тестовый файл
+```
+package main
+
+import (
+	"go.uber.org/zap"
+	"log/slog"
+)
+
+func main() {
+	zapLogger, _ := zap.NewProduction()
+	defer zapLogger.Sync()
+	zapDevLogger, _ := zap.NewDevelopment()
+	defer zapDevLogger.Sync()
+	zapSugar := zapLogger.Sugar()
+	defer zapSugar.Sync()
+
+	slog.Info("starting server")           // обычное сообщение
+	slog.Info("request to /api/v1/users")  // путь
+	slog.Info("redirect to https://x.com") // URL
+	slog.Info("")                          // пустая строка
+	slog.Info("items 123 processed")       // числа допустимы
+	slog.Info("apikey exposed")            // нет apikey
+	slog.Info("secretive behavior")        // не whole word secret
+	slog.Info("refresh token expired")
+
+	slog.Info("user password: 123")
+	slog.Info("secret: value")
+	slog.Info("api_key=xyz")
+
+	slog.Info("processing user_123")
+	slog.Info("contact 123-456-7890")
+
+	slog.Info("user_123 password reset")
+
+	slog.Info("tokenized request") // не должно ловиться при whole word
+	slog.Info("user_")             // нет цифр
+	slog.Info("123-45-6789")       // должно начинаться с буквы
+	slog.Info("   ")               // только пробелы
+}
+
+```
+### Результат работы
+[result_of_the_linter_work](result_of_the_linter_work)
+```
+~/❯ kulga-nikita@pc ./loglinter -config loglinter.yml ./test_app/main.go                                               kulga-nikita@pc
+/home/neket/GolandProjects/utility/test_app/main.go:25:12: log message contains sensitive data: password
+/home/neket/GolandProjects/utility/test_app/main.go:26:12: log message contains sensitive data: secret
+/home/neket/GolandProjects/utility/test_app/main.go:27:12: log message contains sensitive data: api_key
+/home/neket/GolandProjects/utility/test_app/main.go:29:12: log message matches forbidden pattern: user_\d+
+/home/neket/GolandProjects/utility/test_app/main.go:30:12: log message matches forbidden pattern: \d{3}-\d{3}-\d{4}
+/home/neket/GolandProjects/utility/test_app/main.go:32:12: log message matches forbidden pattern: user_\d+
+/home/neket/GolandProjects/utility/test_app/main.go:36:12: log message must start with a lowercase letter
+/home/neket/GolandProjects/utility/test_app/main.go:37:12: log message must start with a lowercase letter
+```
+
+
 ### Линтер поддерживает гибкую настройку правил через YAML-файл. 
 По умолчанию (без передачи конфигурации) линтер будет использовать настройки по умолчанию.
-```bash
+```
 rules:
   # Правило 1: Сообщение должно начинаться со строчной буквы
   lowercase:

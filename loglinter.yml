@@ -49,6 +49,7 @@ rules:
       - reset
       - processed
       - synchronized
+      - exposed
 
   custom_patterns:
     enabled: true

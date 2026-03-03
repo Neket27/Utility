@@ -9,68 +9,77 @@ func TestCheckNoSpecialChars(t *testing.T) {
 	tests := []struct {
 		name      string
 		msg       string
+		maxDots   int
 		wantValid bool
 	}{
-		// === Базовые валидные случаи ===
-		{"empty", "", true},
-		{"whitespace only", "   ", true},
-		{"valid simple", "server started", true},
-		{"valid with numbers", "error code 404", true},
-		{"valid with period", "server started.", true},
-		{"valid with comma", "server started, listening", true},
-		{"valid with colon", "port: 8080", true},
+		// === Базовые валидные случаи (ТЗ ✅) ===
+		{"empty", "", 1, true},
+		{"whitespace only", "   ", 1, true},
+		{"valid simple", "server started", 1, true},
+		{"valid with numbers", "error code 404", 1, true},
 
-		// === Все разрешённые знаки препинания ===
-		{"allowed: hyphen", "non-fatal error", true},
-		{"allowed: underscore", "user_name logged", true},
-		{"allowed: slash", "path/to/file", true},
-		{"allowed: parentheses", "status (ok)", true},
-		{"allowed: square brackets", "array[0] accessed", true},
-		{"allowed: curly braces", "config{env} loaded", true},
-		{"allowed: equals", "key=value", true},
-		{"allowed: plus", "cpu+memory", true},
-		{"allowed: double quote", `msg "quoted"`, true},
-		{"allowed: single quote", "it's working", true},
-		{"allowed: mixed punctuation", "path/to/file.txt: ok", true},
+		// === Разрешённая пунктуация (одиночные знаки) ===
+		{"single period", "server started.", 1, true},
+		{"single comma", "server started, listening", 1, true},
+		{"single colon", "port: 8080", 1, true},
+		{"hyphen", "non-fatal error", 1, true},
+		{"underscore", "user_name logged", 1, true},
+		{"slash", "path/to/file", 1, true},
+		{"parentheses", "status (ok)", 1, true},
+		{"square brackets", "array[0] accessed", 1, true},
+		{"curly braces", "config{env} loaded", 1, true},
+		{"equals", "key=value", 1, true},
+		{"plus", "cpu+memory", 1, true},
+		{"double quote", `msg "quoted"`, 1, true},
+		{"single quote", "it's working", 1, true},
+		{"mixed allowed punctuation", "path/to/file.txt: ok", 1, true},
 
-		// === Логика с точками ===
-		{"three dots ellipsis", "waiting.", true},
-		{"four dots", "really..", false},
-		{"dots reset after space", "a. b", true},
-		{"dots reset after letter", "a.b.c", true},
+		// === Логика с точками (ТЗ: "..." ❌) ===
+		{"single dot maxDots=1", "waiting.", 1, true},
+		{"two dots maxDots=1", "waiting..", 1, false},
+		{"ellipsis maxDots=1", "something went wrong...", 1, false},
+		{"two dots maxDots=2", "waiting..", 2, true},
+		{"ellipsis maxDots=2", "waiting...", 2, false},
+		{"dots reset after space", "a. b", 1, true},
+		{"dots reset after letter", "a.b.c", 1, true},
 
-		// === Запрещённые специальные символы ===
-		{"invalid: exclamation", "server started!", false},
-		{"invalid: question", "what happened?", false},
-		{"invalid: at symbol", "user@localhost", false},
-		{"invalid: hash", "error #404", false},
-		{"invalid: dollar", "cost $100", false},
-		{"invalid: percent", "cpu 95%", false},
-		{"invalid: caret", "2^3=8", false},
-		{"invalid: ampersand", "A&B test", false},
-		{"invalid: asterisk", "wildcard *", false},
-		{"invalid: pipe", "a|b", false},
-		{"invalid: backtick", "cmd `run`", false},
-		{"invalid: tilde", "version ~1.0", false},
-		{"invalid: double exclamation", "failed!!", false},
+		// === Строгий режим: точки запрещены (maxDots=0) ===
+		{"strict: single dot forbidden", "server started.", 0, false},
+		{"strict: clean message passes", "server started", 0, true},
 
-		// === Эмодзи ===
-		{"emoji: emoticon", "started 😀", false},
-		{"emoji: misc symbols", "status ♻️", false},
-		{"emoji: transport", "car 🚗 moved", false},
-		{"emoji: flag", "country 🇷🇺", false},
+		// === Запрещённые спецсимволы (ТЗ ❌) ===
+		{"exclamation", "server started!", 1, false},
+		{"question mark", "what happened?", 1, false},
+		{"at symbol", "user@localhost", 1, false},
+		{"hash", "error #404", 1, false},
+		{"dollar", "cost $100", 1, false},
+		{"percent", "cpu 95%", 1, false},
+		{"caret", "2^3=8", 1, false},
+		{"ampersand", "A&B test", 1, false},
+		{"asterisk", "wildcard *", 1, false},
+		{"pipe", "a|b", 1, false},
+		{"backtick", "cmd `run`", 1, false},
+		{"tilde", "version ~1.0", 1, false},
+		{"multiple exclamation", "failed!!", 1, false},
 
-		// === Unicode буквы (должны быть валидны) ===
-		{"cyrillic letters", "сервер запущен", true},
-		{"chinese letters", "服务器启动", true},
-		{"accented letters", "café résumé", true},
+		// === Эмодзи (ТЗ ❌) ===
+		{"emoji emoticon", "started 😀", 1, false},
+		{"emoji misc", "status ♻️", 1, false},
+		{"emoji transport", "car 🚗 moved", 1, false},
+		{"emoji flag", "country 🇷🇺", 1, false},
+
+		// === Unicode-буквы (разрешены, проверка языка — отдельное правило) ===
+		{"cyrillic", "сервер запущен", 1, true},
+		{"chinese", "服务器启动", 1, true},
+		{"accented", "café résumé", 1, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			valid, _ := rules.CheckNoSpecialChars(tt.msg)
+			valid, _ := rules.CheckNoSpecialChars(tt.msg, tt.maxDots)
 			if valid != tt.wantValid {
-				t.Errorf("CheckNoSpecialChars(%q) valid = %v, want %v", tt.msg, valid, tt.wantValid)
+				t.Errorf("CheckNoSpecialChars(%q, maxDots=%d) = %v, want %v",
+					tt.msg, tt.maxDots, valid, tt.wantValid)
 			}
 		})
 	}
@@ -80,21 +89,36 @@ func TestNoSpecialCharsRule_Check(t *testing.T) {
 	tests := []struct {
 		name           string
 		msg            string
+		maxDots        int
 		enabled        bool
 		wantPassed     bool
 		wantSuggestion bool
 	}{
-		{"enabled valid", "server started", true, true, false},
-		{"enabled invalid", "server started!", true, false, true},
-		{"disabled always passes", "server!", false, true, false},
-		{"emoji removed in suggestion", "ok 😀", true, false, true},
-		{"multiple special cleaned", "test!@#", true, false, true},
-		{"allowed punctuation preserved", "path/to/file.txt", true, true, false},
-		{"ellipsis triggers suggestion", "waiting...", true, false, true},
+		// ТЗ ✅ примеры
+		{"ТЗ valid: server started", "server started", 0, true, true, false},
+
+		// ТЗ ❌ примеры
+		{"ТЗ invalid: exclamation + emoji", "server started! 🚀", 1, true, false, true},
+		{"ТЗ invalid: multiple exclamation", "connection failed!!!", 1, true, false, true},
+		{"ТЗ invalid: ellipsis", "something went wrong...", 1, true, false, true},
+
+		// Конфигурируемость
+		{"strict mode: dot forbidden", "server started.", 0, true, false, true},
+		{"lenient mode: two dots allowed", "waiting..", 2, true, true, false},
+
+		// Включение/выключение правила
+		{"disabled rule always passes", "server!", 1, false, true, false},
+
+		// Проверка предложений по исправлению
+		{"emoji removed in suggestion", "ok 😀", 1, true, false, true},
+		{"special chars cleaned", "test!@#", 1, true, false, true},
+		{"allowed punctuation preserved", "path/to/file.txt", 1, true, true, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			rules.MaxConsecutiveDots = tt.maxDots
+
 			rule := rules.NewNoSpecialCharsRule()
 			rule.SetEnabled(tt.enabled)
 
@@ -126,14 +150,15 @@ func TestCleanSpecialChars(t *testing.T) {
 		{"mixed cleanup", "test!@# ok.", "test ok."},
 		{"empty", "", ""},
 		{"only special", "!@#", ""},
-		{"preserve unicode letters", "сервер! ok", "сервер ok"},
+		{"preserve unicode", "сервер! ok", "сервер ok"},
+		{"ellipsis kept by cleaner", "waiting...", "waiting..."},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := rules.CleanSpecialChars(tt.input)
 			if got != tt.want {
-				t.Errorf("cleanSpecialChars(%q) = %q, want %q", tt.input, got, tt.want)
+				t.Errorf("CleanSpecialChars(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}

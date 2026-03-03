@@ -7,15 +7,21 @@ import (
 
 const RuleNoSpecialCharsName = "no_special_chars"
 
+// MaxConsecutiveDots =3 -> For example, allow "waiting..."
+var MaxConsecutiveDots = 0
+
 var allowedPunctuation = []rune{'.', ',', ':', '-', '_', '/', '(', ')', '[', ']', '{', '}', '=', '+', '"', '\''}
+var problematicSpecialChar = []rune{'!', '?', '@', '#', '$', '%', '^', '&', '*', '|', '`', '~'}
 
 type NoSpecialCharsRule struct {
 	BaseRule
+	maxConsecutiveDots int
 }
 
 func NewNoSpecialCharsRule() Rule {
 	return &NoSpecialCharsRule{
-		BaseRule: NewBaseRule(RuleNoSpecialCharsName, "Checks that log messages don't contain special characters or emojis"),
+		BaseRule:           NewBaseRule(RuleNoSpecialCharsName, "Checks that log messages don't contain special characters or emojis"),
+		maxConsecutiveDots: MaxConsecutiveDots,
 	}
 }
 
@@ -24,7 +30,7 @@ func (r *NoSpecialCharsRule) Check(ctx *CheckContext) *RuleResult {
 		return ResultPass()
 	}
 
-	valid, _ := CheckNoSpecialChars(ctx.Msg)
+	valid, _ := CheckNoSpecialChars(ctx.Msg, r.maxConsecutiveDots)
 	if valid {
 		return ResultPass()
 	}
@@ -37,13 +43,12 @@ func (r *NoSpecialCharsRule) Check(ctx *CheckContext) *RuleResult {
 	)
 }
 
-func CheckNoSpecialChars(msg string) (bool, rune) {
+func CheckNoSpecialChars(msg string, maxDots int) (bool, rune) {
 	runes := []rune(msg)
 	dotCount := 0
 	prevWasDot := false
 
 	for _, ch := range runes {
-
 		if unicode.IsLetter(ch) || unicode.IsDigit(ch) || unicode.IsSpace(ch) {
 			prevWasDot = false
 			continue
@@ -61,11 +66,12 @@ func CheckNoSpecialChars(msg string) (bool, rune) {
 			if ch == '.' {
 				if prevWasDot {
 					dotCount++
-					if dotCount >= 2 {
-						return false, ch
-					}
 				} else {
 					dotCount = 1
+				}
+
+				if dotCount > maxDots {
+					return false, ch
 				}
 				prevWasDot = true
 			} else {
@@ -92,7 +98,7 @@ func isEmoji(ch rune) bool {
 }
 
 func isProblematicSpecialChar(ch rune) bool {
-	return slices.Contains([]rune{'!', '?', '@', '#', '$', '%', '^', '&', '*', '|', '`', '~'}, ch)
+	return slices.Contains(problematicSpecialChar, ch)
 }
 
 func CleanSpecialChars(msg string) string {
