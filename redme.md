@@ -161,6 +161,37 @@ rules:
       - '\d{3}-\d{3}-\d{4}'     # Пример: телефон 123-456-7890
 ```
 
+### Для исправления ошибок можно использовать команду:
+```bash
+./loglinter -config loglinter.yml --fix ./test_app/main.go
+```
+После чего тестовый файл был изменён, приватные данные были скрыты
+```azure
+	slog.Info("starting server")          // обычное сообщение
+	slog.Info("request to /api/v1/users") // путь
+	slog.Info("redirect to https://xcom") // URL
+	slog.Info("")                         // пустая строка
+	slog.Info("items 123 processed")      // числа допустимы
+	slog.Info("apikey exposed")           // нет apikey
+	slog.Info("secretive behavior")       // не whole word secret
+	slog.Info("refresh token expired")
+
+	slog.Info("user password=[REDACTED]")
+	slog.Info("secret=[REDACTED]")
+	slog.Info("api_key=[REDACTED]")
+
+	slog.Info("processing [REDACTED]")
+	slog.Info("contact [REDACTED]")
+
+	slog.Info("[REDACTED] password reset")
+
+	slog.Info("tokenized request") // не должно ловиться при whole word
+	slog.Info("user_")             // нет цифр
+	slog.Info("123-45-6789")       // должно начинаться с буквы
+	slog.Info("   ")               // только пробелы
+```
+
+
 ## Удаление созданных файлов
 clean:
 ```bash
