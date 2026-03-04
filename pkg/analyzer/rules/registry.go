@@ -2,10 +2,10 @@ package rules
 
 func RuleSet() ([]Rule, error) {
 	builders := []RuleBuilder{
-		NewSensitiveWordsRule,
 		NewNoSpecialCharsRule,
 		NewLowercaseRule,
 		NewEnglishOnlyRule,
+		NewSensitiveWordsRule,
 		NewCustomPatternsRule,
 	}
 

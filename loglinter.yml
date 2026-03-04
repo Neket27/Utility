@@ -5,7 +5,6 @@ rules:
 
   english_only:
     enabled: true
-    auto_fix_enabled: true
 
   no_special_chars:
     enabled: true
@@ -55,6 +54,7 @@ rules:
       - processed
       - synchronized
       - exposed
+      - <REDACTED>
 
   custom_patterns:
     enabled: true

@@ -348,15 +348,18 @@ func TestCustomPatternsRule_Reconfigure(t *testing.T) {
 			t.Error("Should match password")
 		}
 
+		// Second config - replace patterns
 		config2 := map[string]any{"patterns": []string{`token`}}
 		if err := rule.Configure(config2); err != nil {
 			t.Fatalf("Configure() error = %v", err)
 		}
 
+		// Password should not match anymore
 		if result := rule.Check(ctx); !result.Passed {
 			t.Error("Password should not match after reconfigure")
 		}
 
+		// Token should match
 		ctx = &CheckContext{Msg: "token leaked"}
 		if result := rule.Check(ctx); result.Passed {
 			t.Error("Token should match")

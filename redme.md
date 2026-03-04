@@ -4,7 +4,7 @@
     ```bash
     git clone https://github.com/Neket27/Utility.git
     ```
-    
+
 2. **Скачайте зависимости:**
     ```bash
     go mod download
@@ -13,7 +13,7 @@
     ```bash
     go build -o loglinter ./cmd/loglinter
     ```
-4. **Сделать файл исполняемым (Linux/Mac)** 
+4. **Сделать файл исполняемым (Linux/Mac)**
     ```bash
    chmod +x ./loglinter
     ```
@@ -34,7 +34,7 @@
 ./loglinter -config loglinter.yml ./test_app/main.go
 ```
 
-## Пример работы 
+## Пример работы
 ### Тестовый файл
 ```
 package main
@@ -92,7 +92,7 @@ func main() {
 ```
 
 
-### Линтер поддерживает гибкую настройку правил через YAML-файл. 
+### Линтер поддерживает гибкую настройку правил через YAML-файл.
 По умолчанию (без передачи конфигурации) линтер будет использовать настройки по умолчанию.
 ```
 rules:

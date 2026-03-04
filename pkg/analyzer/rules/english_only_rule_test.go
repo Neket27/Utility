@@ -159,7 +159,7 @@ func TestCheckEnglishOnly(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			valid, _ := CheckEnglishOnly(tt.msg)
+			valid := CheckEnglishOnly(tt.msg)
 
 			if valid != tt.wantValid {
 				t.Errorf("CheckEnglishOnly(%q) valid = %v, want %v (note: %s)",
@@ -368,7 +368,7 @@ func TestCheckEnglishOnly_UnicodeCategories(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, ch := range tt.runes {
 				msg := string(ch)
-				valid, _ := CheckEnglishOnly(msg)
+				valid := CheckEnglishOnly(msg)
 				isLatin := unicode.Is(unicode.Latin, ch)
 
 				if valid != tt.wantValid {
@@ -407,7 +407,7 @@ func TestEnglishOnlyRule_LookalikeCharacters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			valid, _ := CheckEnglishOnly(tt.msg)
+			valid := CheckEnglishOnly(tt.msg)
 			if valid != tt.wantValid {
 				t.Errorf("CheckEnglishOnly(%q) valid = %v, want %v (note: %s)",
 					tt.msg, valid, tt.wantValid, tt.note)
