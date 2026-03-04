@@ -1,4 +1,4 @@
-Вы можете собрать линтер как исполняемый файл или как плагин для `golangci-lint`.
+### Вы можете собрать линтер как исполняемый файл или как плагин для `golangci-lint`.
 
 1.  **Клонируйте репозиторий:**
     ```bash
@@ -91,27 +91,25 @@ func main() {
 /home/neket/GolandProjects/utility/test_app/main.go:37:12: log message must start with a lowercase letter
 ```
 
-
 ### Линтер поддерживает гибкую настройку правил через YAML-файл.
 По умолчанию (без передачи конфигурации) линтер будет использовать настройки по умолчанию.
 ```
 rules:
-  # Правило 1: Сообщение должно начинаться со строчной буквы
   lowercase:
-    enabled: true  # false — отключить правило
+    enabled: true
+    auto_fix_enabled: true
 
-  # Правило 2: Только английский язык (Latin script)
   english_only:
     enabled: true
 
-  # Правило 3: Запрет спецсимволов и эмодзи
   no_special_chars:
     enabled: true
+    auto_fix_enabled: true
+    max_consecutive_dots: 0
 
-  # Правило 4: Проверка на чувствительные данные
   sensitive_words:
     enabled: true
-    # Список слов для поиска (регистронезависимый)
+    auto_fix_enabled: true
     words:
       - password
       - passwd
@@ -127,8 +125,7 @@ rules:
       - secret_key
       - encryption_key
       - secret_token
-    # Фразы, которые делают использование слова безопасным
-    # Например: "password validated" — OK, "password: 123" — ошибка
+
     safe_phrases:
       - validated
       - verified
@@ -152,6 +149,13 @@ rules:
       - reset
       - processed
       - synchronized
+      - exposed
+
+  custom_patterns:
+    enabled: true
+    patterns:
+      - 'user_\d+'
+      - '\d{3}-\d{3}-\d{4}'
 
   # Правило 5: Кастомные regex-паттерны
   custom_patterns:
@@ -165,7 +169,7 @@ rules:
 ```bash
 ./loglinter -config loglinter.yml --fix ./test_app/main.go
 ```
-После чего тестовый файл был изменён, приватные данные были скрыты
+После чего тестовый файл будет изменён (приватные данные будут скрыты)
 ```azure
 	slog.Info("starting server")          // обычное сообщение
 	slog.Info("request to /api/v1/users") // путь
@@ -190,7 +194,6 @@ rules:
 	slog.Info("123-45-6789")       // должно начинаться с буквы
 	slog.Info("   ")               // только пробелы
 ```
-
 
 ## Удаление созданных файлов
 clean:
