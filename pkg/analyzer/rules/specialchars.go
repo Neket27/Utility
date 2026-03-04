@@ -25,7 +25,7 @@ func NewNoSpecialCharsRule() Rule {
 	}
 }
 
-/*func (r *NoSpecialCharsRule) Configure(config map[string]any) error {
+func (r *NoSpecialCharsRule) Configure(config map[string]any) error {
 	if err := r.BaseRule.Configure(config); err != nil {
 		return err
 	}
@@ -34,7 +34,7 @@ func NewNoSpecialCharsRule() Rule {
 	}
 
 	return nil
-}*/
+}
 
 func (r *NoSpecialCharsRule) Check(ctx *CheckContext) *RuleResult {
 	if !r.Enabled() {

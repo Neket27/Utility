@@ -16,6 +16,10 @@ type mockRule struct {
 	result *rules.RuleResult
 }
 
+func (m *mockRule) SetAutoFixEnabled(b bool) {
+	panic("implement me")
+}
+
 func (m *mockRule) Check(ctx *rules.CheckContext) *rules.RuleResult {
 	return m.result
 }

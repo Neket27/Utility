@@ -33,8 +33,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		cfg = config.DefaultConfig()
 	}
 
-	cfg.Print()
-
 	rulesList := loadRules(cfg)
 
 	checkerInstance := checker.New(rulesList)

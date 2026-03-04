@@ -1,9 +1,8 @@
-package test
+package rules
 
 import (
 	"strings"
 	"testing"
-	"utility/pkg/analyzer/rules"
 )
 
 func TestCustomPatternsRule_Configure(t *testing.T) {
@@ -58,7 +57,7 @@ func TestCustomPatternsRule_Configure(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewCustomPatternsRule().(*rules.CustomPatternsRule)
+			rule := NewCustomPatternsRule().(*CustomPatternsRule)
 			err := rule.Configure(tt.config)
 
 			if (err != nil) != tt.wantErr {
@@ -70,7 +69,7 @@ func TestCustomPatternsRule_Configure(t *testing.T) {
 			}
 
 			if tt.wantErr && err != nil {
-				if !containsIgnoreCase(err.Error(), "compile") {
+				if !ContainsIgnoreCase(err.Error(), "compile") {
 					t.Errorf("Error message = %q, should mention compile error", err.Error())
 				}
 			}
@@ -138,7 +137,7 @@ func TestCustomPatternsRule_Check(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewCustomPatternsRule().(*rules.CustomPatternsRule)
+			rule := NewCustomPatternsRule().(*CustomPatternsRule)
 			rule.SetEnabled(tt.enabled)
 
 			if len(tt.patterns) > 0 {
@@ -148,7 +147,7 @@ func TestCustomPatternsRule_Check(t *testing.T) {
 				}
 			}
 
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if result.Passed != tt.wantPassed {
@@ -159,13 +158,13 @@ func TestCustomPatternsRule_Check(t *testing.T) {
 				if result.Message == "" {
 					t.Error("Check() failed but message is empty")
 				}
-				if tt.wantPattern != "" && !containsIgnoreCase(result.Message, tt.wantPattern) {
+				if tt.wantPattern != "" && !ContainsIgnoreCase(result.Message, tt.wantPattern) {
 					t.Errorf("Message = %q, should contain pattern %q", result.Message, tt.wantPattern)
 				}
 				if result.SuggestedFix == nil {
 					t.Error("Expected SuggestedFix for failed check")
 				} else {
-					gotRedacted := extractSuggestedText(result.SuggestedFix)
+					gotRedacted := ExtractSuggestedText(result.SuggestedFix)
 					if gotRedacted != tt.wantRedacted {
 						t.Errorf("SuggestedFix.NewText = %q, want %q", gotRedacted, tt.wantRedacted)
 					}
@@ -180,11 +179,11 @@ func TestCustomPatternsRule_Check(t *testing.T) {
 }
 
 func TestCustomPatternsRule_Meta(t *testing.T) {
-	rule := rules.NewCustomPatternsRule()
+	rule := NewCustomPatternsRule()
 
 	t.Run("Name", func(t *testing.T) {
-		if got := rule.Name(); got != rules.RuleCustomPatternsName {
-			t.Errorf("Name() = %q, want %q", got, rules.RuleCustomPatternsName)
+		if got := rule.Name(); got != RuleCustomPatternsName {
+			t.Errorf("Name() = %q, want %q", got, RuleCustomPatternsName)
 		}
 	})
 
@@ -193,7 +192,7 @@ func TestCustomPatternsRule_Meta(t *testing.T) {
 		if desc == "" {
 			t.Error("Description() should not be empty")
 		}
-		if !containsIgnoreCase(desc, "custom") || !containsIgnoreCase(desc, "pattern") {
+		if !ContainsIgnoreCase(desc, "custom") || !ContainsIgnoreCase(desc, "pattern") {
 			t.Errorf("Description() = %q, should mention custom patterns", desc)
 		}
 	})
@@ -205,7 +204,7 @@ func TestCustomPatternsRule_Meta(t *testing.T) {
 	})
 
 	t.Run("Empty patterns by default", func(t *testing.T) {
-		customRule := rule.(*rules.CustomPatternsRule)
+		customRule := rule.(*CustomPatternsRule)
 		if len(customRule.CompiledRegex) != 0 {
 			t.Errorf("compiledRegex should be empty by default, got %d", len(customRule.CompiledRegex))
 		}
@@ -213,7 +212,7 @@ func TestCustomPatternsRule_Meta(t *testing.T) {
 }
 
 func TestCustomPatternsRule_Enabled(t *testing.T) {
-	rule := rules.NewCustomPatternsRule().(*rules.CustomPatternsRule)
+	rule := NewCustomPatternsRule().(*CustomPatternsRule)
 
 	t.Run("enable disable toggle", func(t *testing.T) {
 		config := map[string]any{"patterns": []string{`test`}}
@@ -222,7 +221,7 @@ func TestCustomPatternsRule_Enabled(t *testing.T) {
 		}
 
 		rule.SetEnabled(true)
-		ctx := &rules.CheckContext{Msg: "test message"}
+		ctx := &CheckContext{Msg: "test message"}
 		if result := rule.Check(ctx); result.Passed {
 			t.Error("Enabled rule should fail on matching pattern")
 		}
@@ -268,24 +267,24 @@ func TestCustomPatternsRule_ErrorMessages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewCustomPatternsRule().(*rules.CustomPatternsRule)
+			rule := NewCustomPatternsRule().(*CustomPatternsRule)
 			config := map[string]any{"patterns": []string{tt.pattern}}
 			if err := rule.Configure(config); err != nil {
 				t.Fatalf("Configure() error = %v", err)
 			}
 
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if result.Passed {
 				t.Fatal("Check() should fail")
 			}
 
-			if !containsIgnoreCase(result.Message, "forbidden pattern") {
+			if !ContainsIgnoreCase(result.Message, "forbidden pattern") {
 				t.Errorf("Message = %q, should mention 'forbidden pattern'", result.Message)
 			}
 
-			if !containsIgnoreCase(result.Message, tt.wantInMsg) {
+			if !ContainsIgnoreCase(result.Message, tt.wantInMsg) {
 				t.Errorf("Message = %q, should contain pattern %q", result.Message, tt.wantInMsg)
 			}
 		})
@@ -309,7 +308,7 @@ func TestCustomPatternsRule_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewCustomPatternsRule().(*rules.CustomPatternsRule)
+			rule := NewCustomPatternsRule().(*CustomPatternsRule)
 			if len(tt.patterns) > 0 {
 				config := map[string]any{"patterns": tt.patterns}
 
@@ -321,7 +320,7 @@ func TestCustomPatternsRule_EdgeCases(t *testing.T) {
 				}
 			}
 
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if result == nil {
@@ -335,7 +334,7 @@ func TestCustomPatternsRule_EdgeCases(t *testing.T) {
 }
 
 func TestCustomPatternsRule_Reconfigure(t *testing.T) {
-	rule := rules.NewCustomPatternsRule().(*rules.CustomPatternsRule)
+	rule := NewCustomPatternsRule().(*CustomPatternsRule)
 
 	t.Run("replace patterns", func(t *testing.T) {
 		// First config
@@ -344,24 +343,21 @@ func TestCustomPatternsRule_Reconfigure(t *testing.T) {
 			t.Fatalf("Configure() error = %v", err)
 		}
 
-		ctx := &rules.CheckContext{Msg: "password leaked"}
+		ctx := &CheckContext{Msg: "password leaked"}
 		if result := rule.Check(ctx); result.Passed {
 			t.Error("Should match password")
 		}
 
-		// Second config - replace patterns
 		config2 := map[string]any{"patterns": []string{`token`}}
 		if err := rule.Configure(config2); err != nil {
 			t.Fatalf("Configure() error = %v", err)
 		}
 
-		// Password should not match anymore
 		if result := rule.Check(ctx); !result.Passed {
 			t.Error("Password should not match after reconfigure")
 		}
 
-		// Token should match
-		ctx = &rules.CheckContext{Msg: "token leaked"}
+		ctx = &CheckContext{Msg: "token leaked"}
 		if result := rule.Check(ctx); result.Passed {
 			t.Error("Token should match")
 		}
@@ -408,20 +404,20 @@ func TestCustomPatternsRule_SuggestedFix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewCustomPatternsRule().(*rules.CustomPatternsRule)
+			rule := NewCustomPatternsRule().(*CustomPatternsRule)
 			config := map[string]any{"patterns": []string{tt.pattern}}
 			if err := rule.Configure(config); err != nil {
 				t.Fatalf("Configure() error = %v", err)
 			}
 
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if tt.wantFix != "" {
 				if result.SuggestedFix == nil {
 					t.Fatal("Expected SuggestedFix")
 				}
-				gotFix := extractSuggestedText(result.SuggestedFix)
+				gotFix := ExtractSuggestedText(result.SuggestedFix)
 				if gotFix != tt.wantFix {
 					t.Errorf("SuggestedFix.NewText = %q, want %q", gotFix, tt.wantFix)
 				}
@@ -431,7 +427,7 @@ func TestCustomPatternsRule_SuggestedFix(t *testing.T) {
 				}
 			}
 
-			if tt.wantMsg != "" && !containsIgnoreCase(result.Message, tt.wantMsg) {
+			if tt.wantMsg != "" && !ContainsIgnoreCase(result.Message, tt.wantMsg) {
 				t.Errorf("Message = %q, should contain %q", result.Message, tt.wantMsg)
 			}
 		})
@@ -443,7 +439,7 @@ func TestCustomPatternsRule_Performance(t *testing.T) {
 		t.Skip("skipping performance test in short mode")
 	}
 
-	rule := rules.NewCustomPatternsRule().(*rules.CustomPatternsRule)
+	rule := NewCustomPatternsRule().(*CustomPatternsRule)
 	config := map[string]any{
 		"patterns": []string{
 			`\d+`,
@@ -460,7 +456,7 @@ func TestCustomPatternsRule_Performance(t *testing.T) {
 
 	t.Run("many patterns long message", func(t *testing.T) {
 		for i := 0; i < 100; i++ {
-			ctx := &rules.CheckContext{Msg: longMsg}
+			ctx := &CheckContext{Msg: longMsg}
 			_ = rule.Check(ctx)
 		}
 	})

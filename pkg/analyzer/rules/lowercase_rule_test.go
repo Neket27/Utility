@@ -1,10 +1,9 @@
-package test
+package rules
 
 import (
 	"strings"
 	"testing"
 	"unicode"
-	"utility/pkg/analyzer/rules"
 )
 
 func TestCheckLowercase(t *testing.T) {
@@ -44,7 +43,7 @@ func TestCheckLowercase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			valid, suggest := rules.CheckLowercase(tt.msg)
+			valid, suggest := CheckLowercase(tt.msg)
 
 			if valid != tt.wantValid {
 				t.Errorf("CheckLowercase(%q) valid = %v, want %v", tt.msg, valid, tt.wantValid)
@@ -83,17 +82,17 @@ func TestLowercaseRule_Check(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewLowercaseRule().(*rules.LowercaseRule)
+			rule := NewLowercaseRule().(*LowercaseRule)
 			rule.SetEnabled(tt.enabled)
 
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if result.Passed != tt.wantPassed {
 				t.Errorf("Check(%q) passed = %v, want %v", tt.msg, result.Passed, tt.wantPassed)
 			}
 
-			gotSuggestion := extractSuggestedText(result.SuggestedFix)
+			gotSuggestion := ExtractSuggestedText(result.SuggestedFix)
 
 			if tt.wantSuggested != "" {
 				if gotSuggestion != tt.wantSuggested {
@@ -109,11 +108,11 @@ func TestLowercaseRule_Check(t *testing.T) {
 }
 
 func TestLowercaseRule_Meta(t *testing.T) {
-	rule := rules.NewLowercaseRule()
+	rule := NewLowercaseRule()
 
 	t.Run("Name", func(t *testing.T) {
-		if got := rule.Name(); got != rules.RuleLowercaseName {
-			t.Errorf("Name() = %q, want %q", got, rules.RuleLowercaseName)
+		if got := rule.Name(); got != RuleLowercaseName {
+			t.Errorf("Name() = %q, want %q", got, RuleLowercaseName)
 		}
 	})
 
@@ -122,7 +121,7 @@ func TestLowercaseRule_Meta(t *testing.T) {
 		if desc == "" {
 			t.Error("Description() should not be empty")
 		}
-		if !containsIgnoreCase(desc, "lowercase") {
+		if !ContainsIgnoreCase(desc, "lowercase") {
 			t.Errorf("Description() = %q, should mention 'lowercase'", desc)
 		}
 	})
@@ -149,15 +148,15 @@ func TestLowercaseRule_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewLowercaseRule()
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			rule := NewLowercaseRule()
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if result == nil {
 				t.Fatal("Check() returned nil")
 			}
 
-			if got := extractSuggestedText(result.SuggestedFix); got != "" {
+			if got := ExtractSuggestedText(result.SuggestedFix); got != "" {
 				if len([]rune(got)) != len([]rune(tt.msg)) {
 					t.Errorf("Suggestion length mismatch: input=%d runes, got=%d runes",
 						len([]rune(tt.msg)), len([]rune(got)))
@@ -249,20 +248,20 @@ func TestLowercaseRule_AutoFixEnabled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewLowercaseRule()
+			rule := NewLowercaseRule()
 
 			if err := rule.Configure(tt.config); err != nil {
 				t.Fatalf("Configure() error = %v", err)
 			}
 
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if result.Passed != tt.wantPassed {
 				t.Errorf("Check(%q) passed = %v, want %v", tt.msg, result.Passed, tt.wantPassed)
 			}
 
-			gotSuggestion := extractSuggestedText(result.SuggestedFix)
+			gotSuggestion := ExtractSuggestedText(result.SuggestedFix)
 			if gotSuggestion != tt.wantSuggested {
 				t.Errorf("SuggestedFix = %q, want %q", gotSuggestion, tt.wantSuggested)
 			}
@@ -311,16 +310,16 @@ func TestLowercaseRule_Configure_AutoFix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewLowercaseRule()
+			rule := NewLowercaseRule()
 
 			if err := rule.Configure(tt.config); err != nil {
 				t.Fatalf("Configure() error = %v", err)
 			}
 
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
-			gotSuggestion := extractSuggestedText(result.SuggestedFix)
+			gotSuggestion := ExtractSuggestedText(result.SuggestedFix)
 			if gotSuggestion != tt.wantSuggested {
 				t.Errorf("SuggestedFix = %q, want %q", gotSuggestion, tt.wantSuggested)
 			}
@@ -375,18 +374,18 @@ func TestLowercaseRule_AutoFix_Safety(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewLowercaseRule()
+			rule := NewLowercaseRule()
 
 			if err := rule.Configure(tt.config); err != nil {
 				t.Fatalf("Configure() error = %v", err)
 			}
 
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if tt.expected == "" {
 				if result.SuggestedFix != nil {
-					t.Errorf("Expected no suggestion, got %q", extractSuggestedText(result.SuggestedFix))
+					t.Errorf("Expected no suggestion, got %q", ExtractSuggestedText(result.SuggestedFix))
 				}
 				return
 			}
@@ -395,7 +394,7 @@ func TestLowercaseRule_AutoFix_Safety(t *testing.T) {
 				t.Skip("message is valid, no fix needed")
 			}
 
-			got := extractSuggestedText(result.SuggestedFix)
+			got := ExtractSuggestedText(result.SuggestedFix)
 			if got != tt.expected {
 				t.Errorf("SuggestedFix = %q, want %q", got, tt.expected)
 			}

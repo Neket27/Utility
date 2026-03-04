@@ -1,9 +1,8 @@
-package test
+package rules
 
 import (
 	"strings"
 	"testing"
-	"utility/pkg/analyzer/rules"
 )
 
 func TestSensitiveWordsRule_DefaultWords(t *testing.T) {
@@ -81,8 +80,8 @@ func TestSensitiveWordsRule_DefaultWords(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewSensitiveWordsRule()
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			rule := NewSensitiveWordsRule()
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if result.Passed != tt.wantPassed {
@@ -93,7 +92,7 @@ func TestSensitiveWordsRule_DefaultWords(t *testing.T) {
 			}
 			// Проверяем, что в сообщении ошибки упоминается найденное слово
 			if !tt.wantPassed && tt.wantWord != "" && result.Message != "" {
-				if !containsIgnoreCase(result.Message, tt.wantWord) {
+				if !ContainsIgnoreCase(result.Message, tt.wantWord) {
 					t.Errorf("Check() message = %q, want to contain %q", result.Message, tt.wantWord)
 				}
 			}
@@ -104,7 +103,7 @@ func TestSensitiveWordsRule_DefaultWords(t *testing.T) {
 // TestSensitiveWordsRule_Configure — тесты конфигурации правила
 func TestSensitiveWordsRule_Configure(t *testing.T) {
 	t.Run("add custom sensitive words", func(t *testing.T) {
-		rule := rules.NewSensitiveWordsRule().(*rules.SensitiveWordsRule)
+		rule := NewSensitiveWordsRule().(*SensitiveWordsRule)
 		config := map[string]any{
 			"words": []string{"my_secret", "internal_token"},
 		}
@@ -112,14 +111,14 @@ func TestSensitiveWordsRule_Configure(t *testing.T) {
 			t.Fatalf("Configure() error = %v", err)
 		}
 
-		ctx := &rules.CheckContext{Msg: "my_secret value"}
+		ctx := &CheckContext{Msg: "my_secret value"}
 		if result := rule.Check(ctx); result.Passed {
 			t.Error("Check() should fail for custom sensitive word")
 		}
 	})
 
 	t.Run("add custom safe phrases", func(t *testing.T) {
-		rule := rules.NewSensitiveWordsRule().(*rules.SensitiveWordsRule)
+		rule := NewSensitiveWordsRule().(*SensitiveWordsRule)
 		config := map[string]any{
 			"safe_phrases": []string{"sanitized", "masked"},
 		}
@@ -127,14 +126,14 @@ func TestSensitiveWordsRule_Configure(t *testing.T) {
 			t.Fatalf("Configure() error = %v", err)
 		}
 
-		ctx := &rules.CheckContext{Msg: "password sanitized"}
+		ctx := &CheckContext{Msg: "password sanitized"}
 		if result := rule.Check(ctx); !result.Passed {
 			t.Errorf("Check() should pass with custom safe phrase, got: %v", result.Message)
 		}
 	})
 
 	t.Run("custom words replace defaults", func(t *testing.T) {
-		rule := rules.NewSensitiveWordsRule().(*rules.SensitiveWordsRule)
+		rule := NewSensitiveWordsRule().(*SensitiveWordsRule)
 		config := map[string]any{
 			"words": []string{"custom_only"},
 		}
@@ -143,20 +142,20 @@ func TestSensitiveWordsRule_Configure(t *testing.T) {
 		}
 
 		// Default word should NOT trigger anymore
-		ctx := &rules.CheckContext{Msg: "password leaked"}
+		ctx := &CheckContext{Msg: "password leaked"}
 		if result := rule.Check(ctx); !result.Passed {
 			t.Error("Check() should pass - default words replaced by custom")
 		}
 
 		// Custom word should trigger
-		ctx = &rules.CheckContext{Msg: "custom_only here"}
+		ctx = &CheckContext{Msg: "custom_only here"}
 		if result := rule.Check(ctx); result.Passed {
 			t.Error("Check() should fail for custom word")
 		}
 	})
 
 	t.Run("empty config does not break", func(t *testing.T) {
-		rule := rules.NewSensitiveWordsRule()
+		rule := NewSensitiveWordsRule()
 		config := map[string]any{}
 		if err := rule.Configure(config); err != nil {
 			t.Errorf("Configure() with empty config should not error, got %v", err)
@@ -164,7 +163,7 @@ func TestSensitiveWordsRule_Configure(t *testing.T) {
 	})
 
 	t.Run("invalid config types ignored", func(t *testing.T) {
-		rule := rules.NewSensitiveWordsRule().(*rules.SensitiveWordsRule)
+		rule := NewSensitiveWordsRule().(*SensitiveWordsRule)
 		config := map[string]any{
 			"words":        "not-a-slice", // wrong type
 			"safe_phrases": 123,           // wrong type
@@ -173,7 +172,7 @@ func TestSensitiveWordsRule_Configure(t *testing.T) {
 			t.Errorf("Configure() should ignore invalid types, got %v", err)
 		}
 		// Defaults should still work
-		ctx := &rules.CheckContext{Msg: "secret value"}
+		ctx := &CheckContext{Msg: "secret value"}
 		if result := rule.Check(ctx); result.Passed {
 			t.Error("Check() should still detect default sensitive words")
 		}
@@ -182,7 +181,7 @@ func TestSensitiveWordsRule_Configure(t *testing.T) {
 
 // TestSensitiveWordsRule_Enabled — тесты включения/выключения правила
 func TestSensitiveWordsRule_Enabled(t *testing.T) {
-	rule := rules.NewSensitiveWordsRule()
+	rule := NewSensitiveWordsRule()
 
 	t.Run("enabled by default", func(t *testing.T) {
 		if !rule.Enabled() {
@@ -192,7 +191,7 @@ func TestSensitiveWordsRule_Enabled(t *testing.T) {
 
 	t.Run("disabled rule always passes", func(t *testing.T) {
 		rule.SetEnabled(false)
-		ctx := &rules.CheckContext{Msg: "password: 123"}
+		ctx := &CheckContext{Msg: "password: 123"}
 		if result := rule.Check(ctx); !result.Passed {
 			t.Error("Disabled rule should always pass")
 		}
@@ -200,7 +199,7 @@ func TestSensitiveWordsRule_Enabled(t *testing.T) {
 
 	t.Run("re-enabled rule works again", func(t *testing.T) {
 		rule.SetEnabled(true)
-		ctx := &rules.CheckContext{Msg: "secret leaked"}
+		ctx := &CheckContext{Msg: "secret leaked"}
 		if result := rule.Check(ctx); result.Passed {
 			t.Error("Re-enabled rule should detect sensitive words")
 		}
@@ -252,8 +251,8 @@ func TestSensitiveWordsRule_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewSensitiveWordsRule()
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			rule := NewSensitiveWordsRule()
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if result.Passed != tt.wantPassed {
@@ -266,17 +265,17 @@ func TestSensitiveWordsRule_EdgeCases(t *testing.T) {
 
 // TestSensitiveWordsRule_NameAndDescription — мета-тесты правила
 func TestSensitiveWordsRule_NameAndDescription(t *testing.T) {
-	rule := rules.NewSensitiveWordsRule()
+	rule := NewSensitiveWordsRule()
 
-	if rule.Name() != rules.RuleSensitiveWordsName {
-		t.Errorf("Name() = %q, want %q", rule.Name(), rules.RuleSensitiveWordsName)
+	if rule.Name() != RuleSensitiveWordsName {
+		t.Errorf("Name() = %q, want %q", rule.Name(), RuleSensitiveWordsName)
 	}
 
 	desc := rule.Description()
 	if desc == "" {
 		t.Error("Description() should not be empty")
 	}
-	if !containsIgnoreCase(desc, "sensitive") {
+	if !ContainsIgnoreCase(desc, "sensitive") {
 		t.Errorf("Description() = %q, should mention sensitive data", desc)
 	}
 }

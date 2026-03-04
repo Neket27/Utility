@@ -28,7 +28,6 @@ type Rule interface {
 	SetAutoFixEnabled(b bool)
 	Configure(config map[string]any) error
 	Check(ctx *CheckContext) *RuleResult
-	IsAutoFixEnabled() bool
 }
 
 type RuleBuilder func() Rule
@@ -67,16 +66,8 @@ func (b *BaseRule) Configure(config map[string]any) error {
 	return nil
 }
 
-func (b *BaseRule) IsAutoFixEnabled() bool {
-	return b.AutoFixEnabled()
-}
-
 func ResultPass() *RuleResult {
 	return &RuleResult{Passed: true}
-}
-
-func ResultFail(message string) *RuleResult {
-	return &RuleResult{Passed: false, Message: message}
 }
 
 func ResultFailWithSuggestion(message, suggestionMessage, newText string) *RuleResult {

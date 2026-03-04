@@ -1,10 +1,9 @@
-package test
+package rules
 
 import (
 	"strings"
 	"testing"
 	"unicode"
-	"utility/pkg/analyzer/rules"
 )
 
 func TestCheckEnglishOnly(t *testing.T) {
@@ -160,7 +159,7 @@ func TestCheckEnglishOnly(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			valid := rules.CheckEnglishOnly(tt.msg)
+			valid, _ := CheckEnglishOnly(tt.msg)
 
 			if valid != tt.wantValid {
 				t.Errorf("CheckEnglishOnly(%q) valid = %v, want %v (note: %s)",
@@ -199,10 +198,10 @@ func TestEnglishOnlyRule_Check(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewEnglishOnlyRule().(*rules.EnglishOnlyRule)
+			rule := NewEnglishOnlyRule().(*EnglishOnlyRule)
 			rule.SetEnabled(tt.enabled)
 
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if result.Passed != tt.wantPassed {
@@ -214,7 +213,7 @@ func TestEnglishOnlyRule_Check(t *testing.T) {
 			}
 
 			if !tt.wantPassed && result.Message != "" {
-				if !containsIgnoreCase(result.Message, "english") {
+				if !ContainsIgnoreCase(result.Message, "english") {
 					t.Errorf("Message = %q, should mention 'english'", result.Message)
 				}
 			}
@@ -223,11 +222,11 @@ func TestEnglishOnlyRule_Check(t *testing.T) {
 }
 
 func TestEnglishOnlyRule_Meta(t *testing.T) {
-	rule := rules.NewEnglishOnlyRule()
+	rule := NewEnglishOnlyRule()
 
 	t.Run("Name", func(t *testing.T) {
-		if got := rule.Name(); got != rules.RuleEnglishOnlyName {
-			t.Errorf("Name() = %q, want %q", got, rules.RuleEnglishOnlyName)
+		if got := rule.Name(); got != RuleEnglishOnlyName {
+			t.Errorf("Name() = %q, want %q", got, RuleEnglishOnlyName)
 		}
 	})
 
@@ -236,7 +235,7 @@ func TestEnglishOnlyRule_Meta(t *testing.T) {
 		if desc == "" {
 			t.Error("Description() should not be empty")
 		}
-		if !containsIgnoreCase(desc, "english") {
+		if !ContainsIgnoreCase(desc, "english") {
 			t.Errorf("Description() = %q, should mention 'english'", desc)
 		}
 	})
@@ -249,7 +248,7 @@ func TestEnglishOnlyRule_Meta(t *testing.T) {
 }
 
 func TestEnglishOnlyRule_Enabled(t *testing.T) {
-	rule := rules.NewEnglishOnlyRule()
+	rule := NewEnglishOnlyRule()
 
 	t.Run("enabled by default", func(t *testing.T) {
 		if !rule.Enabled() {
@@ -274,7 +273,7 @@ func TestEnglishOnlyRule_Enabled(t *testing.T) {
 
 	t.Run("disabled rule passes non-english", func(t *testing.T) {
 		rule.SetEnabled(false)
-		ctx := &rules.CheckContext{Msg: "сервер запущен"}
+		ctx := &CheckContext{Msg: "сервер запущен"}
 		result := rule.Check(ctx)
 		if !result.Passed {
 			t.Error("Disabled rule should pass non-english message")
@@ -307,8 +306,8 @@ func TestEnglishOnlyRule_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rule := rules.NewEnglishOnlyRule()
-			ctx := &rules.CheckContext{Msg: tt.msg}
+			rule := NewEnglishOnlyRule()
+			ctx := &CheckContext{Msg: tt.msg}
 			result := rule.Check(ctx)
 
 			if result == nil {
@@ -331,13 +330,13 @@ func TestCheckEnglishOnly_Performance(t *testing.T) {
 
 	t.Run("long english", func(t *testing.T) {
 		for i := 0; i < 100; i++ {
-			rules.CheckEnglishOnly(longEnglish)
+			CheckEnglishOnly(longEnglish)
 		}
 	})
 
 	t.Run("long mixed", func(t *testing.T) {
 		for i := 0; i < 100; i++ {
-			rules.CheckEnglishOnly(longMixed)
+			CheckEnglishOnly(longMixed)
 		}
 	})
 }
@@ -369,7 +368,7 @@ func TestCheckEnglishOnly_UnicodeCategories(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, ch := range tt.runes {
 				msg := string(ch)
-				valid := rules.CheckEnglishOnly(msg)
+				valid, _ := CheckEnglishOnly(msg)
 				isLatin := unicode.Is(unicode.Latin, ch)
 
 				if valid != tt.wantValid {
@@ -408,7 +407,7 @@ func TestEnglishOnlyRule_LookalikeCharacters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			valid := rules.CheckEnglishOnly(tt.msg)
+			valid, _ := CheckEnglishOnly(tt.msg)
 			if valid != tt.wantValid {
 				t.Errorf("CheckEnglishOnly(%q) valid = %v, want %v (note: %s)",
 					tt.msg, valid, tt.wantValid, tt.note)

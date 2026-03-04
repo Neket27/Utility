@@ -24,13 +24,13 @@ func main() {
 	slog.Info("запуск сервера") // ❌ Правила 1 и 2
 
 	// Заглавная + Спецсимволы
-	slog.Error("fAILED") // ❌ Правила 1 и 3
+	slog.Error("FAILED") // ❌ Правила 1 и 3
 
 	// Заглавная + Чувствительные данные
-	zapLogger.Info("password=[REDACTED]") // ❌ Правила 1 и 4
+	zapLogger.Info("password: secret123") // ❌ Правила 1 и 4
 
 	// Все 4 нарушения сразу
-	slog.Error("pASSWORD=[REDACTED] ") // ❌ Все 4 правила
+	slog.Error("PASSWORD: секрет123 ") // ❌ Все 4 правила
 
 	// Кириллица + Эмодзи
 	slog.Warn("ошибка ") // ❌ Правила 2 и 3
@@ -72,14 +72,14 @@ func main() {
 	// ✅ ДОЛЖНЫ ПРОХОДИТЬ (нет sensitive слов и regex)
 	// ========================================================================
 
-	slog.Info("starting server")                 // uppercase разрешен
-	slog.Info("сервер запущен")                  // кириллица разрешена
-	slog.Info("error ")                          // спецсимволы разрешены
-	slog.Info("items 123 processed")             // числа разрешены
-	slog.Info("user authenticated successfully") // ок
-	slog.Info("api request completed")           // api без key — ок
-	slog.Info("secret sauce recipe")             // нет точного совпадения secret? → зависит от реализации
-	slog.Info("token validated")                 // если просто contains → сработает!
+	slog.Info("starting server")                                                                                                                                                      // uppercase разрешен
+	slog.Info("'AUTO' IS AN INVALID SOURCE LANGUAGE . EXAMPLE: LANGPAIR=EN|IT USING 2 LETTER ISO OR RFC3066 LIKE ZH-CN. ALMOST ALL LANGUAGES SUPPORTED BUT SOME MAY HAVE NO CONTENT") // кириллица разрешена
+	slog.Info("error ")                                                                                                                                                               // спецсимволы разрешены
+	slog.Info("items 123 processed")                                                                                                                                                  // числа разрешены
+	slog.Info("user authenticated successfully")                                                                                                                                      // ок
+	slog.Info("api request completed")                                                                                                                                                // api без key — ок
+	slog.Info("secret sauce recipe")                                                                                                                                                  // нет точного совпадения secret? → зависит от реализации
+	slog.Info("token validated")                                                                                                                                                      // если просто contains → сработает!
 
 	// ========================================================================
 	// ❌ sensitive_words (должны ловиться)
