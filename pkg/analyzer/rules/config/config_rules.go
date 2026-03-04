@@ -51,6 +51,10 @@ func (r *RuleConfig) IsEnabled() bool {
 	return *r.Enabled
 }
 
+func (r *RuleConfig) IsAutoFixEnabled() bool {
+	return *r.AutoFixEnabled
+}
+
 func (s *SensitiveWords) IsEnabled() bool {
 	if s == nil || s.Enabled == nil {
 		return false
@@ -106,11 +110,4 @@ func DefaultConfig() *Config {
 
 func boolPtr(b bool) *bool {
 	return &b
-}
-
-func (r *RuleConfig) IsAutoFixEnabled() bool {
-	if r == nil || r.AutoFixEnabled == nil {
-		return true
-	}
-	return *r.AutoFixEnabled
 }

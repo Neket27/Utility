@@ -1,11 +1,6 @@
 package rules
 
-import (
-	"fmt"
-	"strings"
-	"unicode"
-	"utility/pkg/translator"
-)
+import "unicode"
 
 const RuleEnglishOnlyName = "english_only"
 
@@ -24,38 +19,18 @@ func (r *EnglishOnlyRule) Check(ctx *CheckContext) *RuleResult {
 		return ResultPass()
 	}
 
-	hasNonEnglish, nonEnglishPart := CheckEnglishOnly(ctx.Msg)
-	if !hasNonEnglish {
-		return ResultPass()
+	if !CheckEnglishOnly(ctx.Msg) {
+		return ResultFail("log message must be in English only")
 	}
 
-	var fix *SuggestedFix
-	if r.AutoFixEnabled() {
-		translated, err := translator.Translate(ctx.Msg, "ru", "en")
-		if err == nil && translated != "" && translated != ctx.Msg {
-			fix = &SuggestedFix{
-				Message: "Translate to English",
-				NewText: translated,
-			}
-		}
-	}
-
-	return &RuleResult{
-		Passed:       false,
-		Message:      fmt.Sprintf("log message must be in English only (found non-English: %q)", nonEnglishPart),
-		SuggestedFix: fix,
-	}
+	return ResultPass()
 }
 
-func CheckEnglishOnly(msg string) (bool, string) {
-	var nonEnglish strings.Builder
+func CheckEnglishOnly(msg string) bool {
 	for _, ch := range msg {
 		if unicode.IsLetter(ch) && !unicode.Is(unicode.Latin, ch) {
-			nonEnglish.WriteRune(ch)
+			return false
 		}
 	}
-	if nonEnglish.Len() > 0 {
-		return true, nonEnglish.String()
-	}
-	return false, ""
+	return true
 }
